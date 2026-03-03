@@ -330,7 +330,7 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
       aria-label='Full-screen training mode'
     >
       {/* ENHANCEMENT: Top Right Controls - Theme, Practice Stats, and Zoom Status */}
-      <div className='absolute top-2 right-2 z-10 flex items-center gap-2'>
+      <div className='absolute top-2 right-2 z-10 flex items-center gap-2 max-w-[calc(100%-1rem)] overflow-x-auto'>
         {/* Zoom Status Display */}
         {onZoomChange && (
           <div className={`px-3 py-1.5 rounded ${currentTheme.controlsBg} border ${currentTheme.border} ${currentTheme.text} text-sm font-medium backdrop-blur-sm`}>
@@ -475,9 +475,9 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
       </div>
 
       <div
-        className={`w-full ${currentTheme.controlsBg} border-t ${currentTheme.border} px-4 py-3 backdrop-blur-sm flex-shrink-0 z-10`}
+        className={`w-full ${currentTheme.controlsBg} border-t ${currentTheme.border} px-2 sm:px-4 py-3 backdrop-blur-sm flex-shrink-0 z-10`}
       >
-        <div className='flex items-center justify-center gap-3 flex-wrap min-h-[44px]'>
+        <div className='flex items-center justify-start sm:justify-center gap-3 flex-nowrap sm:flex-wrap min-h-[44px] overflow-x-auto sm:overflow-visible pb-1'>
           {/* Practice Controls Group */}
           <div className='flex items-center gap-2'>
             {/* Practice Mode Toggle */}

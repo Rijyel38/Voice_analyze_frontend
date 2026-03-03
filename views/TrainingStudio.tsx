@@ -3136,7 +3136,7 @@ const TrainingStudio: React.FC = () => {
           </div>
 
           {/* Student Audio Section */}
-          <div className='bg-white p-6 rounded-2xl shadow-sm border border-slate-100'>
+            <div className='bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100'>
             <div className='flex items-center justify-between mb-4'>
               <h2 className='text-lg font-semibold text-blue-700 flex items-center gap-2'>
                 <span className='flex items-center justify-center w-8 h-8 bg-blue-100 rounded-lg'>
@@ -3216,10 +3216,18 @@ const TrainingStudio: React.FC = () => {
               return shouldShow;
             })() && (
               <div className='mb-4'>
-                <div className='mb-2'>
+                <div className='mb-2 flex items-center justify-between gap-2'>
                   <h3 className='text-sm font-semibold text-slate-700 mb-2'>
                     Pitch Comparison Graph
                   </h3>
+                  <button
+                    onClick={() => setIsFullScreenMode(true)}
+                    className='flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg transition-colors text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100'
+                    title='Open recording graph in full-screen mode'
+                  >
+                    <Maximize2 size={14} />
+                    Full Screen
+                  </button>
                 </div>
                 <CombinedWaveformPitch
                   key={`test-graph-${selectedRef?.id || 'no-ref'}-${

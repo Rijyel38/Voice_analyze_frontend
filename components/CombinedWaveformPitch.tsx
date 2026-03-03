@@ -81,6 +81,16 @@ const CombinedWaveformPitch: React.FC<CombinedWaveformPitchProps> = ({
     ? currentTime / referenceDuration 
     : 0;
 
+  // Dynamic graph range: keep readability for tablets but avoid clipping higher voices.
+  const refFreqs = referencePitch
+    .map((p) => p.f_hz)
+    .filter((f): f is number => f !== null && f !== undefined && f > 0);
+  const studentFreqs = studentPitch
+    .map((p) => p.frequency)
+    .filter((f): f is number => f !== null && f !== undefined && f > 0);
+  const maxObservedFreq = Math.max(0, ...refFreqs, ...studentFreqs);
+  const graphMaxFreq = maxObservedFreq > 550 ? 900 : 600;
+
   return (
     <div className={`${containerClass} mb-4`} style={{ position: 'relative' }}>
       {/* Pitch Contour Section */}
@@ -104,7 +114,7 @@ const CombinedWaveformPitch: React.FC<CombinedWaveformPitchProps> = ({
           onMarkerClick={onMarkerClick}
           fixedYAxis={isFullScreen}
           minFreq={60}
-          maxFreq={600} // Locked to 600 Hz maximum for better visibility on tablets/iPads
+          maxFreq={graphMaxFreq}
           zoomLevel={zoomLevel}
           onZoomChange={onZoomChange}
         />

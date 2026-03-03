@@ -906,16 +906,16 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
         .filter((f): f is number => f !== null && f !== undefined);
 
       const allFreqs = [...refFreqs, ...studentFreqs];
-      // Always use fixed Y-axis range in full-screen mode (locked to 60-600 Hz for better visibility)
-      // This prevents graph shrinking when pitch spikes occur, especially on tablets/iPads
+      // Use fixed Y-axis range in full-screen mode when requested.
+      // Auto-scale mode still caps extremes to keep readability.
       const useFixedRange = isFullScreen || fixedYAxis;
       const calculatedMinFreq = allFreqs.length > 0 ? Math.min(...allFreqs) : 60;
       const calculatedMaxFreq = allFreqs.length > 0 ? Math.max(...allFreqs) : 600;
-      // Cap calculated max at 600 Hz even when auto-scaling
-      const cappedCalculatedMaxFreq = Math.min(calculatedMaxFreq, 600);
+      // Cap auto-scale at 1200 Hz to avoid clipping higher voices while staying readable
+      const cappedCalculatedMaxFreq = Math.min(calculatedMaxFreq, 1200);
       const finalMinFreq = useFixedRange ? minFreq : calculatedMinFreq;
-      const finalMaxFreq = useFixedRange ? maxFreq : Math.min(cappedCalculatedMaxFreq, 600);
-      const freqRange = finalMaxFreq - finalMinFreq || 540; // 600 - 60 = 540
+      const finalMaxFreq = useFixedRange ? maxFreq : Math.max(finalMinFreq + 40, cappedCalculatedMaxFreq);
+      const freqRange = finalMaxFreq - finalMinFreq || 540;
 
       // Draw grid
       ctx.strokeStyle = "#e2e8f0";
@@ -923,7 +923,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
 
       // Horizontal grid lines (frequency)
       for (let i = 0; i <= 5; i++) {
-        const freq = minFreq + (freqRange * i) / 5;
+        const freq = finalMinFreq + (freqRange * i) / 5;
         const y = displayHeight - padding - (i / 5) * graphHeight;
         ctx.beginPath();
         ctx.moveTo(padding, y);

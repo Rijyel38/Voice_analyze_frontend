@@ -14,13 +14,11 @@ export function clampSegmentScore(score: number): number {
 
 /**
  * Format a segment or overall score for display (Milestone 5).
- * Whole numbers for scores >= 1; one decimal for 0 < score < 1 so small scores don't show as 0%.
- * @returns String e.g. "85" or "0.2" — append "%" in UI for "85%" or "0.2%".
+ * Always show whole-number percentages for consistency across the app.
+ * @returns String e.g. "85" — append "%" in UI for "85%".
  */
 export function formatSegmentScore(score: number): string {
   const normalized = clampSegmentScore(score);
-  if (normalized === 0) return "0";
-  if (normalized > 0 && normalized < 1) return normalized.toFixed(1);
   return String(Math.round(normalized));
 }
 
