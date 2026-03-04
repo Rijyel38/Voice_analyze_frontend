@@ -133,6 +133,10 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [showPracticeStats, setShowPracticeStats] = useState(false);
   const [showCountdown, setShowCountdown] = useState(false);
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== "undefined" ? window.innerWidth : 1280,
+    height: typeof window !== "undefined" ? window.innerHeight : 720,
+  }));
 
   // Format time display
   const formatTime = (seconds: number): string => {
@@ -146,13 +150,35 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
   const progressPercent =
     referenceDuration > 0 ? (currentTime / referenceDuration) * 100 : 0;
 
-  // Calculate graph height for full-screen (maximized to use most of screen)
+  const clamp = (value: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, value));
+
+  // Calculate graph height for full-screen with responsive mobile/tablet behavior.
   const getGraphHeight = () => {
-    if (typeof window !== "undefined") {
-      const availableHeight = window.innerHeight - 280;
-      return Math.max(400, Math.min(Math.floor(availableHeight * 0.75), Math.floor(window.innerHeight * 0.6)));
+    if (typeof window === "undefined") {
+      return 420;
     }
-    return 600;
+
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const isLandscape = w > h;
+
+    // Phone
+    if (w < 640) {
+      return isLandscape
+        ? clamp(Math.floor(h * 0.46), 180, 260)
+        : clamp(Math.floor(h * 0.34), 180, 280);
+    }
+
+    // Tablet
+    if (w < 1024) {
+      return isLandscape
+        ? clamp(Math.floor(h * 0.5), 240, 380)
+        : clamp(Math.floor(h * 0.4), 240, 360);
+    }
+
+    // Desktop/larger screens
+    return clamp(Math.floor(h * 0.48), 300, 560);
   };
 
   const [graphHeight, setGraphHeight] = React.useState(getGraphHeight());
@@ -162,6 +188,10 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
     if (!isOpen) return;
 
     const handleResize = () => {
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
       setGraphHeight(getGraphHeight());
     };
 
@@ -319,6 +349,10 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
   };
 
   const currentTheme = themeClasses[theme];
+  const isMobile = viewport.width < 640;
+  const isTablet = viewport.width >= 640 && viewport.width < 1024;
+  const isLandscape = viewport.width > viewport.height;
+  const compactControls = isMobile || (isTablet && isLandscape);
 
   return (
     <div
@@ -333,7 +367,7 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
       <div className='absolute top-2 right-2 z-10 flex items-center gap-2 max-w-[calc(100%-1rem)] overflow-x-auto'>
         {/* Zoom Status Display */}
         {onZoomChange && (
-          <div className={`px-3 py-1.5 rounded ${currentTheme.controlsBg} border ${currentTheme.border} ${currentTheme.text} text-sm font-medium backdrop-blur-sm`}>
+          <div className={`hidden sm:block px-3 py-1.5 rounded ${currentTheme.controlsBg} border ${currentTheme.border} ${currentTheme.text} text-sm font-medium backdrop-blur-sm`}>
             Zoom: {Math.round((zoomLevel || 1.0) * 100)}%
           </div>
         )}
@@ -377,7 +411,7 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
       {/* Practice Statistics Panel */}
       {showPracticeStats && isPracticeMode && (
         <div
-          className={`absolute top-12 right-2 ${currentTheme.controlsBg} border ${currentTheme.border} rounded-lg p-3 shadow-xl min-w-[200px] z-10 backdrop-blur-sm`}
+          className={`absolute top-12 right-2 ${currentTheme.controlsBg} border ${currentTheme.border} rounded-lg p-3 shadow-xl w-[min(260px,90vw)] z-10 backdrop-blur-sm`}
         >
           <div className={`text-xs font-semibold ${currentTheme.text} mb-2`}>
             Practice Statistics
@@ -406,9 +440,9 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
       )}
 
       {/* Main Pitch Graph Area - Optimized for exact fit */}
-      <div className='flex-1 flex flex-col items-center justify-center w-full px-2 mt-8'>
+      <div className='flex-1 flex flex-col w-full px-2 sm:px-4 pt-10 sm:pt-12 pb-2 overflow-hidden'>
         {/* ENHANCEMENT: Live Hz Display with Timeline - Smaller in full-screen */}
-        <div className='mb-2 w-full max-w-[90%]'>
+        <div className='mb-1 sm:mb-2 w-full max-w-[96%] sm:max-w-[90%] mx-auto'>
           <LiveHzDisplay
             pitchData={studentPitch}
             isFullScreen={true}
@@ -475,9 +509,9 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
       </div>
 
       <div
-        className={`w-full ${currentTheme.controlsBg} border-t ${currentTheme.border} px-2 sm:px-4 py-3 backdrop-blur-sm flex-shrink-0 z-10`}
+        className={`w-full ${currentTheme.controlsBg} border-t ${currentTheme.border} px-2 sm:px-4 ${compactControls ? "py-2" : "py-3"} backdrop-blur-sm flex-shrink-0 z-10`}
       >
-        <div className='flex items-center justify-start sm:justify-center gap-3 flex-nowrap sm:flex-wrap min-h-[44px] overflow-x-auto sm:overflow-visible pb-1'>
+        <div className={`flex items-center justify-start sm:justify-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap min-h-[44px] overflow-x-visible sm:overflow-visible ${compactControls ? "pb-0.5" : "pb-1"}`}>
           {/* Practice Controls Group */}
           <div className='flex items-center gap-2'>
             {/* Practice Mode Toggle */}
@@ -664,7 +698,7 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
           )}
 
           {/* Exit Full-Screen Button */}
-          <div className='ml-4 pl-4 border-l border-slate-600/50'>
+          <div className='ml-2 sm:ml-4 pl-2 sm:pl-4 border-l border-slate-600/50'>
             <button
               onClick={onClose}
               className='flex items-center justify-center w-11 h-11 min-h-[44px] min-w-[44px] rounded-full bg-red-600 hover:bg-red-700 text-white transition-colors shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-400'
@@ -678,7 +712,7 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
 
         {/* ENHANCEMENT: Enhanced Keyboard Shortcuts Hint - Improved */}
         <div
-          className={`mt-2 pt-2 border-t border-slate-600/30 text-center text-[10px] ${currentTheme.textMuted} flex items-center justify-center gap-3 flex-wrap`}
+          className={`hidden sm:flex mt-2 pt-2 border-t border-slate-600/30 text-center text-[10px] ${currentTheme.textMuted} items-center justify-center gap-3 flex-wrap`}
         >
           <span className='flex items-center gap-1'>
             <kbd className='px-1.5 py-0.5 bg-slate-700/50 rounded text-[9px]'>

@@ -148,7 +148,7 @@ const TrainingStudio: React.FC = () => {
 
   // Full-screen training mode state
   const [isFullScreenMode, setIsFullScreenMode] = useState(false);
-  const [fullScreenZoomLevel, setFullScreenZoomLevel] = useState(2.0); // Start with 200% zoom for better visibility
+  const [fullScreenZoomLevel, setFullScreenZoomLevel] = useState(1.0); // Start at 100% to avoid oversized mobile/fullscreen graph
 
   // Practice mode state
   const [isPracticeMode, setIsPracticeMode] = useState(false);
@@ -2217,7 +2217,7 @@ const TrainingStudio: React.FC = () => {
   };
 
   return (
-      <div className='max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 pb-20 sm:pb-24 overflow-x-hidden min-h-0'>
+      <div className='max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 pb-20 sm:pb-24 overflow-x-clip min-h-0'>
       {/* Header Section */}
       <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100'>
         <div>
@@ -2525,7 +2525,7 @@ const TrainingStudio: React.FC = () => {
                 Login as Admin/Qari to upload
               </div>
             ) : (
-              <label className='inline-flex items-center justify-center gap-2 h-10 px-3 sm:px-4 whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg cursor-pointer transition-colors text-xs sm:text-sm font-medium shadow-sm shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed' style={{ pointerEvents: isLoadingReferences ? 'none' : 'auto' }}>
+              <label className='inline-flex items-center justify-center gap-2 h-10 px-3 sm:px-4 whitespace-normal sm:whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg cursor-pointer transition-colors text-xs sm:text-sm font-medium shadow-sm shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed' style={{ pointerEvents: isLoadingReferences ? 'none' : 'auto' }}>
                 <Upload size={16} />
                 {isLoadingReferences ? 'Uploading...' : 'Upload Ref'}
                 <input
@@ -3010,7 +3010,7 @@ const TrainingStudio: React.FC = () => {
                   <div className='flex flex-col sm:flex-row justify-center items-center gap-4 mt-8 flex-wrap overflow-y-auto min-w-0'>
                     {/* Reference Audio Playback Speed Control - stack vertically on narrow screens to avoid truncation */}
                     <div className='flex flex-col sm:flex-row sm:items-center gap-2 bg-slate-50 px-3 sm:px-4 py-2 rounded-lg border border-slate-200 flex-shrink-0 w-full sm:w-auto'>
-                      <label className='text-xs sm:text-sm font-medium text-slate-600 whitespace-nowrap flex-shrink-0'>
+                      <label className='text-xs sm:text-sm font-medium text-slate-600 whitespace-normal sm:whitespace-nowrap flex-shrink-0'>
                         Reference Speed:
                       </label>
                       <div className='flex flex-wrap items-center gap-1'>
@@ -3045,7 +3045,7 @@ const TrainingStudio: React.FC = () => {
                     <div className='flex flex-wrap justify-center gap-2 sm:gap-3'>
                       <button
                         onClick={handleRefPlay}
-                        className='flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 min-h-[44px] min-w-[88px] sm:min-w-[100px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm transition-all hover:scale-105 flex-shrink-0 whitespace-nowrap'
+                        className='flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 min-h-[44px] min-w-0 sm:min-w-[100px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm transition-all hover:scale-105 flex-shrink-0 whitespace-normal sm:whitespace-nowrap'
                       >
                         {isPlaying ? (
                           <Pause size={16} className='flex-shrink-0' />
@@ -3056,14 +3056,14 @@ const TrainingStudio: React.FC = () => {
                       </button>
                       <button
                         onClick={handleRefStop}
-                        className='flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 min-h-[44px] min-w-[88px] sm:min-w-[100px] bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-sm transition-all hover:scale-105 flex-shrink-0 whitespace-nowrap'
+                        className='flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 min-h-[44px] min-w-0 sm:min-w-[100px] bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-sm transition-all hover:scale-105 flex-shrink-0 whitespace-normal sm:whitespace-nowrap'
                       >
                         <Square size={16} className='flex-shrink-0' />
                         Stop
                       </button>
                       <button
                         onClick={handleRefRestart}
-                        className='flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 min-h-[44px] min-w-[88px] sm:min-w-[100px] bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-sm transition-all hover:scale-105 flex-shrink-0 whitespace-nowrap'
+                        className='flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 min-h-[44px] min-w-0 sm:min-w-[100px] bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-sm transition-all hover:scale-105 flex-shrink-0 whitespace-normal sm:whitespace-nowrap'
                       >
                         <RefreshCw size={16} className='flex-shrink-0' />
                         Restart
@@ -3718,7 +3718,7 @@ const TrainingStudio: React.FC = () => {
                 {/* Student Audio Playback Speed Control */}
                 <div className='flex justify-center items-center gap-4 mt-4 flex-wrap'>
                   <div className='flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-lg border border-slate-200'>
-                    <label className='text-sm font-medium text-slate-600 whitespace-nowrap'>
+                    <label className='text-sm font-medium text-slate-600 whitespace-normal sm:whitespace-nowrap'>
                       Your Recording Speed:
                     </label>
                     <div className='flex items-center gap-1'>
@@ -3848,7 +3848,7 @@ const TrainingStudio: React.FC = () => {
               </h3>
 
               <div className='flex flex-col items-center justify-center mb-8 relative'>
-                <div className='relative w-48 h-48'>
+                <div className='relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48'>
                   <svg
                     className='w-full h-full transform -rotate-90'
                     viewBox='0 0 36 36'
@@ -3903,7 +3903,7 @@ const TrainingStudio: React.FC = () => {
                         className='text-slate-400 hover:text-slate-600 cursor-help transition-colors'
                         aria-label='Scoring explanation'
                       />
-                      <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-64 bg-slate-800 text-white text-xs rounded-lg p-3 z-20 shadow-xl pointer-events-none'>
+                      <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-max max-w-[min(16rem,90vw)] bg-slate-800 text-white text-xs rounded-lg p-3 z-20 shadow-xl pointer-events-none'>
                         <div className='font-semibold mb-1.5 text-white'>
                           How your score is calculated
                         </div>
@@ -4223,7 +4223,7 @@ const TrainingStudio: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className='bg-white p-8 rounded-2xl shadow-sm border border-slate-100 h-full flex flex-col justify-center items-center text-center text-slate-400 border-dashed border-2'>
+            <div className='bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-100 h-full flex flex-col justify-center items-center text-center text-slate-400 border-dashed border-2'>
               <div className='w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 animate-pulse'>
                 <BarChart2 className='w-10 h-10 text-slate-300' />
               </div>

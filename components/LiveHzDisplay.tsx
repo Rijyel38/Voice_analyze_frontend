@@ -131,13 +131,13 @@ const LiveHzDisplay: React.FC<LiveHzDisplayProps> = ({
           }}
         >
           {/* Timeline Section - Left side */}
-          <div className={`flex items-center gap-2 ${theme.text}`}>
+          <div className={`flex items-center gap-2 min-w-0 ${theme.text}`}>
             <div className={`text-xs font-mono tabular-nums ${theme.text}`}>
               {timeFormatter(currentTime)} / {timeFormatter(referenceDuration)}
             </div>
             <div className='flex items-center gap-1.5'>
               <div
-                className={`w-40 h-1.5 ${theme.bg} rounded-full overflow-hidden border ${theme.border} backdrop-blur-sm`}
+                className={`w-24 sm:w-32 md:w-40 h-1.5 ${theme.bg} rounded-full overflow-hidden border ${theme.border} backdrop-blur-sm`}
               >
                 <div
                   className='h-full bg-blue-500 transition-all duration-100'
@@ -180,7 +180,7 @@ const LiveHzDisplay: React.FC<LiveHzDisplayProps> = ({
                 </div>
                 <div className='flex items-center gap-1.5'>
                   <div
-                    className={`w-40 h-1.5 ${theme.bg} rounded-full overflow-hidden border ${theme.border} backdrop-blur-sm`}
+                    className={`w-24 sm:w-32 md:w-40 h-1.5 ${theme.bg} rounded-full overflow-hidden border ${theme.border} backdrop-blur-sm`}
                   >
                     <div
                       className='h-full bg-blue-500 transition-all duration-100'
@@ -200,7 +200,7 @@ const LiveHzDisplay: React.FC<LiveHzDisplayProps> = ({
           )}
 
           {/* Live Pitch Display */}
-          <div className='flex items-center justify-center gap-6'>
+          <div className='flex items-center justify-center gap-3 sm:gap-6 flex-wrap'>
             <div className='text-center'>
               <div className={labelClass}>Live Pitch</div>
               <div className='flex items-baseline gap-2'>

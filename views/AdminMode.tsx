@@ -363,7 +363,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800 mb-2">
           {activeTab === 'presets' && 'Preset Manager'}
@@ -395,7 +395,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
               <div className="text-slate-500">Loading presets...</div>
             </div>
           ) : presets.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8 lg:p-12 text-center">
               <p className="text-slate-500 mb-4">No presets created yet.</p>
               <p className="text-sm text-slate-400">
                 Click "Create New Preset" to get started.
@@ -584,7 +584,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
               <div className="text-slate-500">Loading users...</div>
             </div>
           ) : users.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8 lg:p-12 text-center">
               <p className="text-slate-500 mb-4">No users found.</p>
               <p className="text-sm text-slate-400">
                 Click "Create User" to add a new user.
@@ -606,7 +606,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                   <tbody className="bg-white divide-y divide-slate-200">
                     {users.map((user) => (
                       <tr key={user.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-slate-900">
                               {user.full_name || user.email}
@@ -619,7 +619,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                             user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
                             user.role === 'qari' ? 'bg-blue-100 text-blue-800' :
@@ -634,7 +634,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap">
                           <div className="flex flex-col gap-1">
                             {user.is_approved ? (
                               <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded">
@@ -654,10 +654,10 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                        <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap text-sm text-slate-500">
                           {new Date(user.created_at).toLocaleDateString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
                             {user.role === 'qari' && !user.is_approved && (
                               <button
@@ -695,7 +695,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
       {activeTab === 'monitoring' && (
         <>
           {/* Monitoring Sub-tabs */}
-          <div className="mb-6 flex gap-2 border-b border-slate-200">
+          <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200">
             <button
               onClick={() => setMonitoringView('overview')}
               className={`px-4 py-2 font-medium transition-colors border-b-2 ${
@@ -757,7 +757,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
               <div className="text-slate-500">Loading statistics...</div>
             </div>
           ) : !statistics ? (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8 lg:p-12 text-center">
               <p className="text-slate-500 mb-4">No statistics available.</p>
             </div>
           ) : (
@@ -1000,7 +1000,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                   <div className="text-slate-500">Loading user details...</div>
                 </div>
               ) : detailedUsers.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8 lg:p-12 text-center">
                   <p className="text-slate-500">No users found.</p>
                 </div>
               ) : (
@@ -1033,7 +1033,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                                 <div className="text-sm text-slate-500">{user.email}</div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap">
                               <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                                 user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
                                 user.role === 'qari' ? 'bg-blue-100 text-blue-800' :
@@ -1043,7 +1043,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                                 {user.role}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap">
                               <div className="flex flex-col gap-1">
                                 {user.is_approved ? (
                                   <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded">
@@ -1063,19 +1063,19 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                                 )}
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                            <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap text-sm text-slate-600">
                               <div>
                                 <div>Sessions: {user.session_count || 0}</div>
                                 <div>Analyses: {user.analysis_count || 0}</div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap text-sm text-slate-500">
                               {user.last_login
                                 ? new Date(user.last_login).toLocaleString()
                                 : 'Never'}
                             </td>
                             {user.role === 'qari' && (
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                              <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap text-sm text-slate-600">
                                 <div>
                                   <div>Students: {user.student_count || 0}</div>
                                   <div>Content: {user.content_count || 0}</div>
@@ -1088,7 +1088,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                               </td>
                             )}
                             {user.role === 'student' && (
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                              <td className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 whitespace-normal break-words sm:whitespace-nowrap text-sm text-slate-600">
                                 <div>
                                   <div>Progress: {user.progress_count || 0}</div>
                                   {user.assigned_qari && (
@@ -1129,7 +1129,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                   <div className="text-slate-500">Loading sessions...</div>
                 </div>
               ) : sessions.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8 lg:p-12 text-center">
                   <p className="text-slate-500">No sessions found.</p>
                 </div>
               ) : (
@@ -1166,7 +1166,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                                 )}
                               </div>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
+                            <td className="px-3 py-3 sm:px-4 whitespace-normal break-words sm:whitespace-nowrap">
                               <span className={`px-2 py-1 text-xs font-medium rounded ${
                                 session.has_analysis
                                   ? 'bg-green-100 text-green-800'
@@ -1189,7 +1189,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                                 <span className="text-slate-400">-</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
+                            <td className="px-3 py-3 sm:px-4 whitespace-normal break-words sm:whitespace-nowrap">
                               {session.score !== null && session.score !== undefined ? (
                                 <div>
                                   <span className="text-sm font-medium text-slate-800">
@@ -1205,15 +1205,15 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                                 <span className="text-slate-400">-</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">
+                            <td className="px-3 py-3 sm:px-4 whitespace-normal break-words sm:whitespace-nowrap text-sm text-slate-600">
                               {session.duration ? `${session.duration.toFixed(1)}s` : '-'}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">
+                            <td className="px-3 py-3 sm:px-4 whitespace-normal break-words sm:whitespace-nowrap text-sm text-slate-500">
                               {session.created_at
                                 ? new Date(session.created_at).toLocaleString()
                                 : '-'}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
+                            <td className="px-3 py-3 sm:px-4 whitespace-normal break-words sm:whitespace-nowrap">
                               {session.file_path && (
                                 <button
                                   onClick={async () => {
@@ -1267,7 +1267,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                   <div className="text-slate-500">Loading usage metrics...</div>
                 </div>
               ) : !usageMetrics ? (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8 lg:p-12 text-center">
                   <p className="text-slate-500">No usage metrics available.</p>
                 </div>
               ) : (
@@ -1300,7 +1300,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                       <FileAudio size={20} />
                       Recordings
                     </h3>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <p className="text-sm text-slate-600">Today</p>
                         <p className="text-3xl font-bold text-slate-800">
@@ -1328,7 +1328,7 @@ const AdminMode: React.FC<AdminModeProps> = ({ view = 'presets' }) => {
                       <TrendingUp size={20} />
                       Assessments
                     </h3>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <p className="text-sm text-slate-600">Today</p>
                         <p className="text-3xl font-bold text-slate-800">

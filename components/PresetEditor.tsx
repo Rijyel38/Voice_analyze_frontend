@@ -167,7 +167,7 @@ const PresetEditor: React.FC<PresetEditorProps> = ({
             <div className="text-slate-500">Loading references...</div>
           </div>
         ) : references.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8 lg:p-12 text-center">
             <p className="text-slate-500 mb-4">No references available.</p>
             <p className="text-sm text-slate-400">
               Please upload a reference audio first in the Training Studio.
@@ -253,11 +253,11 @@ const PresetEditor: React.FC<PresetEditorProps> = ({
 
         {/* Text Alignment Editor */}
         {loadingPitch || loadingAudio ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8 lg:p-12 text-center">
             <div className="text-slate-500">Loading audio and pitch data...</div>
           </div>
         ) : !audioUrl ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8 lg:p-12 text-center">
             <div className="text-red-500">Failed to load audio. Please try again.</div>
           </div>
         ) : (

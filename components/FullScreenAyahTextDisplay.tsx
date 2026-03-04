@@ -60,16 +60,16 @@ const FullScreenAyahTextDisplay: React.FC<FullScreenAyahTextDisplayProps> = ({
 
   return (
     <div
-      className={`w-full px-8 py-6 ${theme.bg} border-t ${theme.border} mt-4`}
+      className={`w-full px-3 sm:px-6 py-3 sm:py-4 ${theme.bg} border-t ${theme.border} mt-2 sm:mt-3 max-h-[30vh] overflow-y-auto`}
       role="region"
       aria-label="Quranic text display"
       dir="rtl"
     >
       <div className="max-w-6xl mx-auto">
         {/* Current Verse - Large and Highlighted */}
-        <div className="mb-6">
+        <div className="mb-3 sm:mb-4">
           <div
-            className={`text-4xl md:text-5xl font-medium ${theme.text} leading-relaxed text-center py-6 px-8 rounded-lg bg-emerald-900/30 border-2 border-emerald-500/50 shadow-lg`}
+            className={`text-2xl sm:text-3xl lg:text-4xl font-medium ${theme.text} leading-relaxed text-center py-3 sm:py-4 px-3 sm:px-6 rounded-lg bg-emerald-900/30 border-2 border-emerald-500/50 shadow-lg`}
             style={{
               fontFamily:
                 'Arial, "Arabic Typesetting", "Traditional Arabic", sans-serif',
@@ -91,9 +91,9 @@ const FullScreenAyahTextDisplay: React.FC<FullScreenAyahTextDisplayProps> = ({
 
         {/* Next Verse - Preview (Smaller) */}
         {displayNextVerse && displayNextVerse !== displayCurrentVerse && (
-          <div className="mt-4">
+          <div className="mt-2 sm:mt-3">
             <div
-              className={`text-2xl md:text-3xl font-medium ${theme.textMuted} leading-relaxed text-center py-4 px-6 rounded-lg bg-slate-800/30 border border-slate-600/30`}
+              className={`text-xl sm:text-2xl lg:text-3xl font-medium ${theme.textMuted} leading-relaxed text-center py-2.5 sm:py-3 px-3 sm:px-5 rounded-lg bg-slate-800/30 border border-slate-600/30`}
               style={{
                 fontFamily:
                   'Arial, "Arabic Typesetting", "Traditional Arabic", sans-serif',

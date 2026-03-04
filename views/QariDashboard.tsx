@@ -260,7 +260,7 @@ const QariDashboard: React.FC = () => {
                     className="fixed inset-0 z-10"
                     onClick={() => setShowFilterDropdown(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden">
+                  <div className="absolute left-0 right-0 sm:left-auto sm:right-0 sm:w-52 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden">
                     <div className="p-1.5 bg-slate-50/50 border-b border-slate-100">
                       <p className="px-3 py-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">Filter by</p>
                     </div>
@@ -542,7 +542,7 @@ const QariDashboard: React.FC = () => {
                   {/* Student Info */}
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-800 mb-2">Student Information</h3>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-gray-600">Email:</span>{" "}
                         <span className="text-gray-800">{studentDetails.student.email}</span>
@@ -575,7 +575,7 @@ const QariDashboard: React.FC = () => {
                   {/* Statistics */}
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-800 mb-3">Statistics</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div>
                         <p className="text-sm text-gray-600">Total Sessions</p>
                         <p className="text-2xl font-bold text-gray-800">

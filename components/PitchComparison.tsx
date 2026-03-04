@@ -217,7 +217,8 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
 
     // Find time range
     const allTimes = [...refPitch, ...studentPitch].map((p) => p.time);
-    const maxTime = Math.max(...allTimes, 1);
+    const dataMaxTime = allTimes.length > 0 ? Math.max(...allTimes) : 0;
+    const timelineDuration = duration > 0 ? duration : Math.max(dataMaxTime, 1);
 
     // Draw grid lines
     ctx.strokeStyle = "#475569";
@@ -260,7 +261,7 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
     // Draw time scale labels on bottom
     ctx.textAlign = "center";
     for (let i = 0; i <= 5; i++) {
-      const time = (maxTime / 5) * i;
+      const time = (timelineDuration / 5) * i;
       const x = padding + (graphWidth / 5) * i;
       ctx.fillText(`${time.toFixed(1)}s`, x, height - padding + 20);
     }
@@ -270,11 +271,15 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
       segments.forEach((seg, index) => {
         // Convert segment start/end from normalized (0-1) to actual time if needed
         const segStart =
-          seg.start < 1 && maxTime > 1 ? seg.start * maxTime : seg.start;
+          seg.start < 1 && timelineDuration > 1
+            ? seg.start * timelineDuration
+            : seg.start;
         const segEnd =
-          seg.end <= 1 && maxTime > 1 ? seg.end * maxTime : seg.end;
-        const x1 = padding + (segStart / maxTime) * graphWidth;
-        const x2 = padding + (segEnd / maxTime) * graphWidth;
+          seg.end <= 1 && timelineDuration > 1
+            ? seg.end * timelineDuration
+            : seg.end;
+        const x1 = padding + (segStart / timelineDuration) * graphWidth;
+        const x2 = padding + (segEnd / timelineDuration) * graphWidth;
         const regionWidth = x2 - x1;
 
         // Color based on accuracy
@@ -399,7 +404,7 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
         const confidence = originalPoint?.confidence ?? 1.0;
 
         if (point.y > 0 && confidence > 0.5) {
-          const x = padding + (point.x / maxTime) * graphWidth;
+          const x = padding + (point.x / timelineDuration) * graphWidth;
           const y =
             padding +
             graphHeight -
@@ -428,7 +433,7 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
         const confidence = originalPoint?.confidence ?? 1.0;
 
         if (point.y > 0 && confidence <= 0.5 && confidence > 0) {
-          const x = padding + (point.x / maxTime) * graphWidth;
+          const x = padding + (point.x / timelineDuration) * graphWidth;
           const y =
             padding +
             graphHeight -
@@ -470,7 +475,7 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
         const confidence = originalPoint?.confidence ?? 1.0;
 
         if (point.y > 0 && confidence > 0.5) {
-          const x = padding + (point.x / maxTime) * graphWidth;
+          const x = padding + (point.x / timelineDuration) * graphWidth;
           const y =
             padding +
             graphHeight -
@@ -499,7 +504,7 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
         const confidence = originalPoint?.confidence ?? 1.0;
 
         if (point.y > 0 && confidence <= 0.5 && confidence > 0) {
-          const x = padding + (point.x / maxTime) * graphWidth;
+          const x = padding + (point.x / timelineDuration) * graphWidth;
           const y =
             padding +
             graphHeight -
@@ -549,7 +554,7 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
 
           // Mark if difference > 150 cents (~1.25 semitones)
           if (centsDiff > 150) {
-            const x = padding + (studentTime / maxTime) * graphWidth;
+            const x = padding + (studentTime / timelineDuration) * graphWidth;
             const y =
               padding +
               graphHeight -
@@ -579,7 +584,7 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
         if (refPoint) {
           const pitchValue = getPitchValue(refPoint);
           if (pitchValue !== null) {
-            const x = padding + (time / maxTime) * graphWidth;
+            const x = padding + (time / timelineDuration) * graphWidth;
             const y =
               padding +
               graphHeight -
@@ -593,10 +598,10 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
     }
 
     // Draw current time indicator (yellow vertical line)
-    if (currentTime > 0 && maxTime > 0) {
+    if (currentTime > 0 && timelineDuration > 0) {
       ctx.strokeStyle = "#fbbf24"; // Yellow
       ctx.lineWidth = 2;
-      const x = padding + (currentTime / maxTime) * graphWidth;
+      const x = padding + (currentTime / timelineDuration) * graphWidth;
       if (x >= padding && x <= width - padding) {
         ctx.beginPath();
         ctx.moveTo(x, padding);
@@ -614,11 +619,12 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
     const allTimes = [...pitchData.reference, ...pitchData.student].map(
       (p) => p.time
     );
-    const maxTime = Math.max(...allTimes, duration || 1);
+    const dataMaxTime = allTimes.length > 0 ? Math.max(...allTimes) : 0;
+    const timelineDuration = duration > 0 ? duration : Math.max(dataMaxTime, 1);
 
     // Clamp to valid range
-    const clampedTime = Math.max(0, Math.min(maxTime, seekTime));
-    const seekProgress = maxTime > 0 ? clampedTime / maxTime : 0;
+    const clampedTime = Math.max(0, Math.min(timelineDuration, seekTime));
+    const seekProgress = timelineDuration > 0 ? clampedTime / timelineDuration : 0;
 
     // Seek both audio players
     try {
@@ -653,24 +659,29 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
     const allTimes = [...pitchData.reference, ...pitchData.student].map(
       (p) => p.time
     );
-    const maxTime = Math.max(...allTimes, duration || 1);
-    const clickedTime = ((x - padding) / graphWidth) * maxTime;
+    const dataMaxTime = allTimes.length > 0 ? Math.max(...allTimes) : 0;
+    const timelineDuration = duration > 0 ? duration : Math.max(dataMaxTime, 1);
+    const clickedTime = ((x - padding) / graphWidth) * timelineDuration;
 
     // If clicking on a region, seek to region start for better UX
     if (segments && segments.length > 0) {
       // Convert segment start/end from normalized (0-1) to actual time if needed
       const clickedSegment = segments.find((seg) => {
         const segStart =
-          seg.start < 1 && maxTime > 1 ? seg.start * maxTime : seg.start;
+          seg.start < 1 && timelineDuration > 1
+            ? seg.start * timelineDuration
+            : seg.start;
         const segEnd =
-          seg.end <= 1 && maxTime > 1 ? seg.end * maxTime : seg.end;
+          seg.end <= 1 && timelineDuration > 1
+            ? seg.end * timelineDuration
+            : seg.end;
         return clickedTime >= segStart && clickedTime <= segEnd;
       });
       if (clickedSegment) {
         // Convert to actual time and seek to segment start
         const segStartTime =
-          clickedSegment.start < 1 && maxTime > 1
-            ? clickedSegment.start * maxTime
+          clickedSegment.start < 1 && timelineDuration > 1
+            ? clickedSegment.start * timelineDuration
             : clickedSegment.start;
         handleSeek(segStartTime);
         return;
@@ -734,17 +745,23 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
     const allTimes = pitchData
       ? [...pitchData.reference, ...pitchData.student].map((p) => p.time)
       : [];
-    const maxTime = Math.max(...allTimes, duration || 1);
-    const hoverTime = ((x - padding) / graphWidth) * maxTime;
+    const dataMaxTime = allTimes.length > 0 ? Math.max(...allTimes) : 0;
+    const timelineDuration = duration > 0 ? duration : Math.max(dataMaxTime, 1);
+    const hoverTime = ((x - padding) / graphWidth) * timelineDuration;
 
     // Convert segment start/end from normalized (0-1) to actual time (seconds)
     // Segments come with start/end as 0.0-1.0 (0%-100%), need to convert to seconds
     const segmentIndex = segments.findIndex((seg) => {
       // Check if segment.start/end are normalized (0-1) or already in seconds
-      // If maxTime > 1 and seg.start < 1, likely normalized
+      // If timelineDuration > 1 and seg.start < 1, likely normalized
       const segStart =
-        seg.start < 1 && maxTime > 1 ? seg.start * maxTime : seg.start;
-      const segEnd = seg.end <= 1 && maxTime > 1 ? seg.end * maxTime : seg.end;
+        seg.start < 1 && timelineDuration > 1
+          ? seg.start * timelineDuration
+          : seg.start;
+      const segEnd =
+        seg.end <= 1 && timelineDuration > 1
+          ? seg.end * timelineDuration
+          : seg.end;
       return hoverTime >= segStart && hoverTime <= segEnd;
     });
     const segment = segmentIndex >= 0 ? segments[segmentIndex] : null;
@@ -752,11 +769,13 @@ const PitchComparison: React.FC<PitchComparisonProps> = ({
     if (segment) {
       // Convert segment times to actual seconds for pitch calculation
       const segStartTime =
-        segment.start < 1 && maxTime > 1
-          ? segment.start * maxTime
+        segment.start < 1 && timelineDuration > 1
+          ? segment.start * timelineDuration
           : segment.start;
       const segEndTime =
-        segment.end <= 1 && maxTime > 1 ? segment.end * maxTime : segment.end;
+        segment.end <= 1 && timelineDuration > 1
+          ? segment.end * timelineDuration
+          : segment.end;
       const segmentMidTime = (segStartTime + segEndTime) / 2;
       const pitchDiff = calculatePitchDifference(segmentMidTime);
 
