@@ -3007,7 +3007,7 @@ const TrainingStudio: React.FC = () => {
                   )}
 
                   {/* Audio controls for reference */}
-                  <div className='flex flex-col sm:flex-row justify-center items-center gap-4 mt-8 flex-wrap overflow-y-auto min-w-0'>
+                  <div className='flex flex-col sm:flex-row justify-center items-center gap-4 mt-8 flex-wrap overflow-x-auto min-w-0 max-w-full'>
                     {/* Reference Audio Playback Speed Control - stack vertically on narrow screens to avoid truncation */}
                     <div className='flex flex-col sm:flex-row sm:items-center gap-2 bg-slate-50 px-3 sm:px-4 py-2 rounded-lg border border-slate-200 flex-shrink-0 w-full sm:w-auto'>
                       <label className='text-xs sm:text-sm font-medium text-slate-600 whitespace-normal sm:whitespace-nowrap flex-shrink-0'>
@@ -3042,10 +3042,10 @@ const TrainingStudio: React.FC = () => {
                     </div>
 
                     {/* Control Buttons */}
-                    <div className='flex flex-wrap justify-center gap-2 sm:gap-3'>
+                    <div className='grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-3 w-full sm:w-auto'>
                       <button
                         onClick={handleRefPlay}
-                        className='flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 min-h-[44px] min-w-0 sm:min-w-[100px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm transition-all hover:scale-105 flex-shrink-0 whitespace-normal sm:whitespace-nowrap'
+                        className='w-full sm:w-auto flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 min-h-[44px] sm:min-w-[100px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-[11px] sm:text-sm transition-all hover:scale-105 whitespace-nowrap'
                       >
                         {isPlaying ? (
                           <Pause size={16} className='flex-shrink-0' />
@@ -3056,17 +3056,18 @@ const TrainingStudio: React.FC = () => {
                       </button>
                       <button
                         onClick={handleRefStop}
-                        className='flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 min-h-[44px] min-w-0 sm:min-w-[100px] bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-sm transition-all hover:scale-105 flex-shrink-0 whitespace-normal sm:whitespace-nowrap'
+                        className='w-full sm:w-auto flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 min-h-[44px] sm:min-w-[100px] bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-[11px] sm:text-sm transition-all hover:scale-105 whitespace-nowrap'
                       >
                         <Square size={16} className='flex-shrink-0' />
                         Stop
                       </button>
                       <button
                         onClick={handleRefRestart}
-                        className='flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 min-h-[44px] min-w-0 sm:min-w-[100px] bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-sm transition-all hover:scale-105 flex-shrink-0 whitespace-normal sm:whitespace-nowrap'
+                        className='w-full sm:w-auto flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 min-h-[44px] sm:min-w-[100px] bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-[11px] sm:text-sm transition-all hover:scale-105 whitespace-nowrap'
                       >
                         <RefreshCw size={16} className='flex-shrink-0' />
-                        Restart
+                        <span className='sm:hidden'>Reset</span>
+                        <span className='hidden sm:inline'>Restart</span>
                       </button>
                     </div>
                   </div>
@@ -3452,7 +3453,7 @@ const TrainingStudio: React.FC = () => {
                 </div>
 
                 {/* Audio Playback Controls */}
-                <div className='flex justify-center items-center gap-3 mt-8'>
+                <div className='grid grid-cols-3 gap-2 sm:flex sm:justify-center sm:items-center sm:gap-3 mt-8 w-full'>
                   <button
                     onClick={async () => {
                       // Play reference audio and start real-time pitch extraction
@@ -3566,12 +3567,12 @@ const TrainingStudio: React.FC = () => {
                         }
                       }
                     }}
-                    className='flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all'
+                    className='flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-[11px] sm:text-sm transition-all whitespace-nowrap'
                   >
                     {refWaveSurfer.current?.isPlaying() ? (
-                      <Pause size={18} />
+                      <Pause size={16} />
                     ) : (
-                      <Play size={18} fill='currentColor' />
+                      <Play size={16} fill='currentColor' />
                     )}
                     {refWaveSurfer.current?.isPlaying() ? "Pause" : "Play"}
                   </button>
@@ -3605,9 +3606,9 @@ const TrainingStudio: React.FC = () => {
 
                       // Note: followModePitchData is preserved for graph display
                     }}
-                    className='flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium transition-all'
+                    className='flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 min-h-[44px] bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-[11px] sm:text-sm transition-all whitespace-nowrap'
                   >
-                    <Square size={18} />
+                    <Square size={16} />
                     Stop
                   </button>
                   <button
@@ -3708,20 +3709,21 @@ const TrainingStudio: React.FC = () => {
                         studentWaveSurfer.current.play();
                       }
                     }}
-                    className='flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium transition-all'
+                    className='flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 min-h-[44px] bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-[11px] sm:text-sm transition-all whitespace-nowrap'
                   >
-                    <RefreshCw size={18} />
-                    Restart
+                    <RefreshCw size={16} />
+                    <span className='sm:hidden'>Reset</span>
+                    <span className='hidden sm:inline'>Restart</span>
                   </button>
                 </div>
 
                 {/* Student Audio Playback Speed Control */}
-                <div className='flex justify-center items-center gap-4 mt-4 flex-wrap'>
-                  <div className='flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-lg border border-slate-200'>
+                <div className='flex justify-center items-center gap-4 mt-4 flex-wrap max-w-full'>
+                  <div className='flex flex-col sm:flex-row sm:items-center gap-2 bg-slate-50 px-3 sm:px-4 py-2 rounded-lg border border-slate-200 w-full sm:w-auto max-w-full'>
                     <label className='text-sm font-medium text-slate-600 whitespace-normal sm:whitespace-nowrap'>
                       Your Recording Speed:
                     </label>
-                    <div className='flex items-center gap-1'>
+                    <div className='flex flex-wrap items-center gap-1 max-w-full overflow-x-auto'>
                       {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) => (
                         <button
                           key={speed}
@@ -3753,16 +3755,16 @@ const TrainingStudio: React.FC = () => {
                   </div>
                 </div>
 
-                <div className='flex justify-center gap-3 mt-6'>
+                <div className='flex flex-col sm:flex-row justify-center gap-2 sm:gap-3 mt-5 sm:mt-6 items-stretch sm:items-center'>
                   <button
                     onClick={handleSyncPlay}
-                    className='flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95'
+                    className='w-full sm:w-auto flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95'
                   >
                     <Play size={18} fill='currentColor' /> Play Both
                   </button>
                   <button
                     onClick={handleStopAll}
-                    className='flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium shadow-sm transition-all'
+                    className='w-full sm:w-auto flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium shadow-sm transition-all'
                   >
                     <Pause size={18} fill='currentColor' /> Stop
                   </button>
@@ -3770,7 +3772,7 @@ const TrainingStudio: React.FC = () => {
                     <button
                       onClick={handleAnalyze}
                       disabled={isAnalyzing}
-                      className='flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100'
+                      className='w-full sm:w-auto flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100'
                     >
                       {isAnalyzing ? (
                         "Analyzing..."
