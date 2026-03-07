@@ -1156,13 +1156,24 @@ const TrainingStudio: React.FC = () => {
       return;
     }
 
-    // Calculate time relative to reference audio playback
-    const elapsedTime = (Date.now() - followModeStartTimeRef.current) / 1000;
+    // Use actual reference player time as source-of-truth to avoid wall-clock drift.
+    // Fallback to elapsed wall time only if player time is unavailable.
+    const fallbackElapsedTime =
+      (Date.now() - followModeStartTimeRef.current) / 1000;
+    const playerTime =
+      refWaveSurfer.current && !refWaveSurfer.current.isDestroyed
+        ? refWaveSurfer.current.getCurrentTime()
+        : fallbackElapsedTime;
+    const safeTime = Number.isFinite(playerTime) ? playerTime : fallbackElapsedTime;
+    const mappedTime =
+      referenceDurationRef.current && referenceDurationRef.current > 0
+        ? Math.min(safeTime, referenceDurationRef.current)
+        : safeTime;
 
-    // Map pitch time to reference audio time
+    // Map pitch time to reference audio timeline
     const mappedPitch: PitchPoint = {
       ...pitch,
-      time: elapsedTime, // Use elapsed time from reference audio start
+      time: mappedTime,
     };
 
     setFollowModePitchData((prev) => {
