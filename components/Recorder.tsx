@@ -16,6 +16,7 @@ interface RecorderProps {
   viewMode?: "waveform" | "pitch"; // Display mode
   // New prop to trigger actual recording start (after countdown)
   triggerRecordingStart?: boolean; // When true, starts recording immediately
+  triggerRecordingStop?: boolean; // When true, stops recording externally
   onError?: (message: string) => void; // Error callback for displaying alerts
 }
 
@@ -30,6 +31,7 @@ const Recorder: React.FC<RecorderProps> = ({
   referenceDuration = 0,
   viewMode = "pitch", // Default to pitch view
   triggerRecordingStart = false, // Trigger to start recording after countdown
+  triggerRecordingStop = false,
 }) => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const pitchExtractorRef = useRef<RealTimePitchExtractor | null>(null);
@@ -53,13 +55,18 @@ const Recorder: React.FC<RecorderProps> = ({
       });
       streamRef.current = stream;
 
-      // Try to use best available codec
-      let mimeType = "audio/webm;codecs=opus";
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = "audio/webm";
-      }
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = "audio/mp4";
+      // Prefer formats that decode reliably in browser for later WAV conversion.
+      const preferredMimeTypes = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+      ];
+      const mimeType =
+        preferredMimeTypes.find((type) => MediaRecorder.isTypeSupported(type)) ||
+        "";
+
+      if (!mimeType) {
+        throw new Error("No supported browser recording format found.");
       }
 
       const mediaRecorder = new MediaRecorder(stream, {
@@ -184,6 +191,12 @@ const Recorder: React.FC<RecorderProps> = ({
       startRecording();
     }
   }, [triggerRecordingStart, isRecording]);
+
+  useEffect(() => {
+    if (triggerRecordingStop && isRecording) {
+      stopRecording();
+    }
+  }, [triggerRecordingStop, isRecording]);
   
   // Reset hasStartedRef when recording stops
   useEffect(() => {

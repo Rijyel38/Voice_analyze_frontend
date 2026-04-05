@@ -114,6 +114,55 @@ const convertRecordedAudioToWav = async (blob: Blob): Promise<Blob> => {
   }
 };
 
+type PracticePcmRecorder = {
+  audioContext: AudioContext;
+  source: MediaStreamAudioSourceNode;
+  processor: ScriptProcessorNode;
+  chunks: Float32Array[];
+  sampleRate: number;
+};
+
+const float32ToWavBlob = (
+  samples: Float32Array,
+  sampleRate: number
+): Blob => {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+
+  const writeString = (offset: number, value: string) => {
+    for (let i = 0; i < value.length; i++) {
+      view.setUint8(offset + i, value.charCodeAt(i));
+    }
+  };
+
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const sample = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(
+      offset,
+      sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+      true
+    );
+    offset += 2;
+  }
+
+  return new Blob([buffer], { type: "audio/wav" });
+};
+
 const TrainingStudio: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   const userRole = user?.role || 'public';
@@ -162,6 +211,7 @@ const TrainingStudio: React.FC = () => {
   const [showCountdown, setShowCountdown] = useState(false);
   const [showRecordingCountdown, setShowRecordingCountdown] = useState(false);
   const [triggerRecordingStart, setTriggerRecordingStart] = useState(false);
+  const [triggerRecordingStop, setTriggerRecordingStop] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [studentPlaybackSpeed, setStudentPlaybackSpeed] = useState(() => {
     // Load from localStorage if available, otherwise default to 1.0
@@ -240,6 +290,38 @@ const TrainingStudio: React.FC = () => {
 
   // Practice audio element ref for volume control
   const practiceAudioRef = useRef<HTMLAudioElement | null>(null);
+  const practicePcmRecorderRef = useRef<PracticePcmRecorder | null>(null);
+
+  const flushPracticePcmRecorder = (): Blob | null => {
+    const recorder = practicePcmRecorderRef.current;
+    if (!recorder) return null;
+
+    practicePcmRecorderRef.current = null;
+
+    try {
+      recorder.processor.disconnect();
+      recorder.source.disconnect();
+      void recorder.audioContext.close();
+    } catch (error) {
+      console.warn("Error closing PCM recorder:", error);
+    }
+
+    if (recorder.chunks.length === 0) {
+      return null;
+    }
+
+    const totalLength = recorder.chunks.reduce(
+      (sum, chunk) => sum + chunk.length,
+      0
+    );
+    const merged = new Float32Array(totalLength);
+    let offset = 0;
+    for (const chunk of recorder.chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return float32ToWavBlob(merged, recorder.sampleRate);
+  };
 
   // Load progress on mount and when reference changes
   useEffect(() => {
@@ -719,6 +801,7 @@ const TrainingStudio: React.FC = () => {
           .forEach((track) => track.stop());
         practiceRawStreamRef.current = null;
       }
+      flushPracticePcmRecorder();
       // Stop Stream 2 (filtered pitch stream)
       if (practiceStreamRef.current) {
         practiceStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -1015,6 +1098,7 @@ const TrainingStudio: React.FC = () => {
     isRecordingRef.current = false;
     recordingStartTimeRef.current = null;
     setTriggerRecordingStart(false); // Reset trigger
+    setTriggerRecordingStop(false);
     // Note: Practice mode and recording are separate - recording doesn't affect practice mode
   };
 
@@ -1232,6 +1316,7 @@ const TrainingStudio: React.FC = () => {
           .forEach((track) => track.stop());
         practiceRawStreamRef.current = null;
       }
+      flushPracticePcmRecorder();
 
       // Stop Stream 2 (filtered pitch stream)
       if (practiceStreamRef.current) {
@@ -1262,9 +1347,6 @@ const TrainingStudio: React.FC = () => {
 
     // Clear previous student pitch data - start fresh (this clears the graph history)
     setStudentPitchData([]);
-    // Clear main recording result so new fullscreen recording cleanly drives post-recording UI.
-    setStudentBlob(null);
-    setAnalysisResult(null);
 
     // Clear previous practice audio
     if (practiceAudioUrl) {
@@ -1301,59 +1383,7 @@ const TrainingStudio: React.FC = () => {
         practiceStreamRef.current = null;
       }
 
-      // Stream 1: Raw audio for recording/playback (completely unfiltered - like voice recorder)
-      let rawStream: MediaStream | null = null;
-      try {
-        rawStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            // DISABLE ALL PROCESSING - match voice recorder behavior
-            echoCancellation: false, // CRITICAL: Must be false for raw audio
-            noiseSuppression: false, // Must be false
-            autoGainControl: false, // Must be false
-            sampleRate: 48000, // Standard voice recorder sample rate (48kHz)
-            channelCount: 1, // Mono (standard for voice)
-            // Chrome-specific flags to force disable processing
-            ...({
-              googEchoCancellation: false,
-              googNoiseSuppression: false,
-              googAutoGainControl: false,
-              googHighpassFilter: false,
-              googTypingNoiseDetection: false,
-            } as any),
-          },
-        });
-        practiceRawStreamRef.current = rawStream;
-
-        // Verify actual settings match what we requested
-        const audioTrack = rawStream.getAudioTracks()[0];
-        const settings = audioTrack.getSettings();
-        console.log("Raw audio stream settings:", {
-          sampleRate: settings.sampleRate,
-          channelCount: settings.channelCount,
-          echoCancellation: settings.echoCancellation,
-          noiseSuppression: settings.noiseSuppression,
-          autoGainControl: settings.autoGainControl,
-          deviceId: settings.deviceId,
-        });
-
-        // Warn if browser didn't respect our settings
-        if (settings.echoCancellation !== false) {
-          console.warn("⚠️ Browser enabled echoCancellation despite request!");
-        }
-        if (settings.noiseSuppression !== false) {
-          console.warn("⚠️ Browser enabled noiseSuppression despite request!");
-        }
-        if (settings.autoGainControl !== false) {
-          console.warn("⚠️ Browser enabled autoGainControl despite request!");
-        }
-
-        console.log("✅ Stream 1 (raw) created - all processing disabled");
-      } catch (rawStreamError) {
-        console.error("Failed to create Stream 1 (raw):", rawStreamError);
-        // Continue - pitch analysis can still work with Stream 2
-      }
-
-      // Stream 2: Filtered audio for pitch analysis (keep as-is)
+      // Practice mode should only do live pitch extraction, not save audio.
       let filteredStream: MediaStream | null = null;
       try {
         filteredStream = await navigator.mediaDevices.getUserMedia({
@@ -1372,128 +1402,11 @@ const TrainingStudio: React.FC = () => {
           "Failed to create Stream 2 (filtered):",
           filteredStreamError
         );
-        // If Stream 1 exists, we can still record, but pitch won't work
-        if (!rawStream) {
-          throw filteredStreamError; // If both fail, throw error
-        }
+        throw filteredStreamError;
       }
 
-      // Ensure at least one stream was created
-      if (!rawStream && !filteredStream) {
-        throw new Error("Failed to create both audio streams");
-      }
-
-      // Start recording practice audio using Stream 1 (raw)
-      if (rawStream) {
-        try {
-          practiceAudioChunksRef.current = [];
-
-          // Prefer formats that decode reliably in browser for WAV conversion.
-          // Avoid MP4 fallback here because some MP4 recorder outputs fail decodeAudioData.
-          const preferredMimeTypes = [
-            "audio/webm;codecs=opus",
-            "audio/webm",
-            "audio/ogg;codecs=opus",
-          ];
-          const mimeType =
-            preferredMimeTypes.find((type) =>
-              MediaRecorder.isTypeSupported(type)
-            ) || "";
-
-          if (!mimeType) {
-            throw new Error(
-              "No supported browser recording format found for practice mode."
-            );
-          }
-
-          const mediaRecorder = new MediaRecorder(rawStream, {
-            mimeType,
-            audioBitsPerSecond: 510000, // Maximum bitrate for Opus (510kbps)
-          });
-          practiceMediaRecorderRef.current = mediaRecorder;
-
-          console.log("MediaRecorder configured:", {
-            mimeType: mediaRecorder.mimeType,
-            audioBitsPerSecond: mediaRecorder.audioBitsPerSecond,
-          });
-
-          mediaRecorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) {
-              practiceAudioChunksRef.current.push(e.data);
-            }
-          };
-
-          mediaRecorder.onstop = async () => {
-            console.log("Practice audio recording stopped");
-
-            // Wait for all chunks to be collected
-            setTimeout(async () => {
-              if (practiceAudioChunksRef.current.length > 0) {
-                // Create blob from recorded chunks
-                const recordedBlob = new Blob(practiceAudioChunksRef.current, {
-                  type: mediaRecorder.mimeType || "audio/webm",
-                });
-
-                console.log("Recorded audio (compressed):", {
-                  size: recordedBlob.size,
-                  type: recordedBlob.type,
-                  chunks: practiceAudioChunksRef.current.length,
-                });
-
-                // CRITICAL: Convert to WAV (lossless, same as voice recorder)
-                try {
-                  const wavBlob = await convertRecordedAudioToWav(recordedBlob);
-
-                  setPracticeAudioBlob(wavBlob);
-                  // Keep fullscreen recording and general mode in the same session state.
-                  // This ensures "after recording" controls are available after closing fullscreen.
-                  setStudentBlob(wavBlob);
-                  setAnalysisResult(null);
-                  const url = URL.createObjectURL(wavBlob);
-                  setPracticeAudioUrl(url);
-
-                  console.log("✅ Converted to WAV (lossless):", {
-                    size: wavBlob.size,
-                    type: wavBlob.type,
-                    "Original size": recordedBlob.size,
-                    "WAV size": wavBlob.size,
-                  });
-                } catch (conversionError) {
-                  // Keep playback available, but don't use non-WAV blob for scoring
-                  // in local setups without ffmpeg.
-                  console.error(
-                    "WAV conversion failed for practice audio:",
-                    conversionError
-                  );
-                  setPracticeAudioBlob(recordedBlob);
-                  setStudentBlob(recordedBlob);
-                  setAnalysisResult(null);
-                  const url = URL.createObjectURL(recordedBlob);
-                  setPracticeAudioUrl(url);
-                  setPracticeError(
-                    "Recording saved for playback, but WAV conversion failed. Please record again in Chrome/Edge to calculate score."
-                  );
-                }
-              } else {
-                console.warn("No audio chunks collected");
-              }
-            }, 300); // Wait for final chunks
-          };
-
-          mediaRecorder.onerror = (e) => {
-            console.error("MediaRecorder error:", e);
-            setPracticeError("Audio recording error occurred");
-          };
-
-          // Start recording with regular data collection
-          mediaRecorder.start(100); // 100ms timeslice
-          console.log("✅ Recording started with raw audio (no processing)");
-        } catch (recordingError) {
-          console.error("Could not start audio recording:", recordingError);
-          setPracticeError("Failed to start audio recording");
-        }
-      } else {
-        console.warn("Stream 1 (raw) not available - recording disabled");
+      if (!filteredStream) {
+        throw new Error("Failed to create practice microphone stream");
       }
 
       // Set practice mode state FIRST
@@ -1663,6 +1576,9 @@ const TrainingStudio: React.FC = () => {
   // Reset student pitch when starting new recording
   // Recording mode is completely separate from practice mode
   const handleRecordingStart = () => {
+    if (isPracticeMode || isPracticeModeRef.current) {
+      handlePracticeStop();
+    }
     // Show countdown before starting recording
     setShowRecordingCountdown(true);
   };
@@ -1686,6 +1602,10 @@ const TrainingStudio: React.FC = () => {
     setTriggerRecordingStart(true);
     
     console.log("[Recording] Starting recording after countdown - pitch data cleared, time mapping initialized");
+  };
+
+  const handleRecordingStop = () => {
+    setTriggerRecordingStop(true);
   };
 
   const handleAnalyze = async () => {
@@ -3351,6 +3271,7 @@ const TrainingStudio: React.FC = () => {
                   referenceDuration={referenceDuration}
                   viewMode='pitch'
                   triggerRecordingStart={triggerRecordingStart}
+                  triggerRecordingStop={triggerRecordingStop}
                 />
               </div>
             ) : (
@@ -4267,6 +4188,9 @@ const TrainingStudio: React.FC = () => {
         onPracticeRestart={handlePracticeStart}
         practiceTime={practiceTime}
         practiceAttempts={progressData?.totalAttempts || 0}
+        isRecordingSession={isRecording}
+        onRecordingStart={handleRecordingStart}
+        onRecordingStop={handleRecordingStop}
         practiceAudioUrl={practiceAudioUrl}
         isPlayingPracticeAudio={isPlayingPracticeAudio}
         practiceAudioTime={practiceAudioTime}

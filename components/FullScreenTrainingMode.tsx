@@ -59,6 +59,9 @@ interface FullScreenTrainingModeProps {
   onPracticeRestart?: () => void;
   practiceTime?: number;
   practiceAttempts?: number;
+  isRecordingSession?: boolean;
+  onRecordingStart?: () => void;
+  onRecordingStop?: () => void;
   // Recorded student voice audio props
   practiceAudioUrl?: string | null;
   isPlayingPracticeAudio?: boolean;
@@ -117,6 +120,9 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
   onPracticeRestart,
   practiceTime = 0,
   practiceAttempts = 0,
+  isRecordingSession = false,
+  onRecordingStart,
+  onRecordingStop,
   practiceAudioUrl = null,
   isPlayingPracticeAudio = false,
   practiceAudioTime = 0,
@@ -556,7 +562,7 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
               <div className='flex items-center gap-1.5 px-2 py-1 rounded bg-red-600/20 border border-red-500/30'>
                 <div className='w-2 h-2 bg-red-500 rounded-full animate-pulse'></div>
                 <span className='text-xs text-red-300 font-medium'>
-                  Recording
+                  Practice Live
                 </span>
               </div>
             )}
@@ -588,8 +594,42 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
             )}
           </div>
 
+          {/* Recording Controls Group */}
+          {(onRecordingStart || onRecordingStop) && (
+            <div className='flex items-center gap-2'>
+              <button
+                onClick={() => {
+                  if (isRecordingSession) {
+                    onRecordingStop?.();
+                  } else {
+                    onRecordingStart?.();
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-medium transition-all ${
+                  isRecordingSession
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : "bg-purple-600 hover:bg-purple-700 text-white"
+                } shadow-md hover:shadow-lg`}
+                title={isRecordingSession ? "Stop Recording" : "Start Recording"}
+                aria-label={isRecordingSession ? "Stop recording" : "Start recording"}
+              >
+                {isRecordingSession ? (
+                  <>
+                    <Square size={14} />
+                    Stop Recording
+                  </>
+                ) : (
+                  <>
+                    <Mic size={14} />
+                    Start Recording
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* Divider */}
-          {(isPracticeMode || practiceAudioUrl) && (
+          {(isPracticeMode || practiceAudioUrl || isRecordingSession) && (
             <div className='h-8 w-px bg-slate-600/50'></div>
           )}
 
