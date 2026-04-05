@@ -100,7 +100,8 @@ const audioBufferToWav = (audioBuffer: AudioBuffer): Blob => {
 
 // Convert recorded blob to WAV (lossless, same as voice recorder)
 const convertRecordedAudioToWav = async (blob: Blob): Promise<Blob> => {
-  const audioContext = new AudioContext({ sampleRate: 48000 });
+  const audioContext = new (window.AudioContext ||
+    (window as any).webkitAudioContext)();
   try {
     const arrayBuffer = await blob.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -1156,24 +1157,13 @@ const TrainingStudio: React.FC = () => {
       return;
     }
 
-    // Use actual reference player time as source-of-truth to avoid wall-clock drift.
-    // Fallback to elapsed wall time only if player time is unavailable.
-    const fallbackElapsedTime =
-      (Date.now() - followModeStartTimeRef.current) / 1000;
-    const playerTime =
-      refWaveSurfer.current && !refWaveSurfer.current.isDestroyed
-        ? refWaveSurfer.current.getCurrentTime()
-        : fallbackElapsedTime;
-    const safeTime = Number.isFinite(playerTime) ? playerTime : fallbackElapsedTime;
-    const mappedTime =
-      referenceDurationRef.current && referenceDurationRef.current > 0
-        ? Math.min(safeTime, referenceDurationRef.current)
-        : safeTime;
+    // Calculate time relative to reference audio playback
+    const elapsedTime = (Date.now() - followModeStartTimeRef.current) / 1000;
 
-    // Map pitch time to reference audio timeline
+    // Map pitch time to reference audio time
     const mappedPitch: PitchPoint = {
       ...pitch,
-      time: mappedTime,
+      time: elapsedTime, // Use elapsed time from reference audio start
     };
 
     setFollowModePitchData((prev) => {
@@ -1272,6 +1262,9 @@ const TrainingStudio: React.FC = () => {
 
     // Clear previous student pitch data - start fresh (this clears the graph history)
     setStudentPitchData([]);
+    // Clear main recording result so new fullscreen recording cleanly drives post-recording UI.
+    setStudentBlob(null);
+    setAnalysisResult(null);
 
     // Clear previous practice audio
     if (practiceAudioUrl) {
@@ -1395,13 +1388,22 @@ const TrainingStudio: React.FC = () => {
         try {
           practiceAudioChunksRef.current = [];
 
-          // Use highest quality codec available (we'll convert to WAV anyway)
-          let mimeType = "audio/webm;codecs=opus";
-          if (!MediaRecorder.isTypeSupported(mimeType)) {
-            mimeType = "audio/webm";
-          }
-          if (!MediaRecorder.isTypeSupported(mimeType)) {
-            mimeType = "audio/mp4";
+          // Prefer formats that decode reliably in browser for WAV conversion.
+          // Avoid MP4 fallback here because some MP4 recorder outputs fail decodeAudioData.
+          const preferredMimeTypes = [
+            "audio/webm;codecs=opus",
+            "audio/webm",
+            "audio/ogg;codecs=opus",
+          ];
+          const mimeType =
+            preferredMimeTypes.find((type) =>
+              MediaRecorder.isTypeSupported(type)
+            ) || "";
+
+          if (!mimeType) {
+            throw new Error(
+              "No supported browser recording format found for practice mode."
+            );
           }
 
           const mediaRecorder = new MediaRecorder(rawStream, {
@@ -1443,6 +1445,10 @@ const TrainingStudio: React.FC = () => {
                   const wavBlob = await convertRecordedAudioToWav(recordedBlob);
 
                   setPracticeAudioBlob(wavBlob);
+                  // Keep fullscreen recording and general mode in the same session state.
+                  // This ensures "after recording" controls are available after closing fullscreen.
+                  setStudentBlob(wavBlob);
+                  setAnalysisResult(null);
                   const url = URL.createObjectURL(wavBlob);
                   setPracticeAudioUrl(url);
 
@@ -1453,19 +1459,20 @@ const TrainingStudio: React.FC = () => {
                     "WAV size": wavBlob.size,
                   });
                 } catch (conversionError) {
-                  // Conversion failed, but we can still safely use the original
-                  // recording blob for practice playback. Treat this as a
-                  // non-fatal warning rather than a user-facing error.
-                  console.warn(
-                    "WAV conversion failed for practice audio, using original format instead:",
+                  // Keep playback available, but don't use non-WAV blob for scoring
+                  // in local setups without ffmpeg.
+                  console.error(
+                    "WAV conversion failed for practice audio:",
                     conversionError
                   );
                   setPracticeAudioBlob(recordedBlob);
+                  setStudentBlob(recordedBlob);
+                  setAnalysisResult(null);
                   const url = URL.createObjectURL(recordedBlob);
                   setPracticeAudioUrl(url);
-                  // Do NOT set practiceError here; playback still works and
-                  // scoring logic is unaffected. This avoids confusing users
-                  // with a red error banner for a recoverable case.
+                  setPracticeError(
+                    "Recording saved for playback, but WAV conversion failed. Please record again in Chrome/Edge to calculate score."
+                  );
                 }
               } else {
                 console.warn("No audio chunks collected");
@@ -2712,7 +2719,7 @@ const TrainingStudio: React.FC = () => {
                     />
                   </div>
 
-                  {/* Prominent reference pitch graph - shows student pitch during practice */}
+                  {/* Prominent reference pitch graph - reference contour only */}
                   {/* Only show this section when NOT extracting */}
                   {!isExtractingRefPitch && (
                   <div className='mb-4'>
@@ -2764,17 +2771,6 @@ const TrainingStudio: React.FC = () => {
                                 </button>
                               </>
                             ) : null}
-                            {(referencePitchData.length > 0 ||
-                              (analysisResult?.pitchData?.reference && analysisResult.pitchData.reference.length > 0)) && (
-                              <button
-                                onClick={() => setIsFullScreenMode(true)}
-                                className='flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg transition-colors text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100'
-                                title='Enter full-screen mode'
-                              >
-                                <Maximize2 size={14} />
-                                Full Screen
-                              </button>
-                            )}
                           </>
                         )}
                       </div>
@@ -2785,11 +2781,9 @@ const TrainingStudio: React.FC = () => {
                       <LiveHzDisplay pitchData={studentPitchData} />
                     )}
 
-                    {/* Pitch Contour Display with Waveform */}
+                    {/* Reference-only graph (no student/red track here) */}
                     <CombinedWaveformPitch
                       referencePitch={
-                        // In test mode, prefer analysisResult pitch (from backend scoring)
-                        // This ensures test graph uses the same reference as scoring
                         analysisResult?.pitchData?.reference &&
                         analysisResult.pitchData.reference.length > 0
                           ? analysisResult.pitchData.reference.map(
@@ -2802,35 +2796,13 @@ const TrainingStudio: React.FC = () => {
                             )
                           : referencePitchData
                       }
-                      studentPitch={
-                        isPracticeMode
-                          ? studentPitchData // Practice: live pitch from real-time extractor
-                          : // Test mode: use student pitch from analysisResult (backend-extracted during scoring)
-                          analysisResult?.pitchData?.student &&
-                            analysisResult.pitchData.student.length > 0
-                          ? analysisResult.pitchData.student.map((p: any) => ({
-                              time: p.time || 0,
-                              frequency: p.f_hz || null,
-                              midi: p.midi || null,
-                              confidence: p.confidence || 0.9,
-                            }))
-                          : // After practice stops, preserve practice data so graph remains visible
-                          studentPitchData && studentPitchData.length > 0
-                          ? studentPitchData
-                          : [] // No student pitch available yet
-                      }
-                      isRecording={isPracticeMode}
-                      isPlaying={
-                        isPracticeMode
-                          ? isPlayingPracticeAudio // Practice mode: use practice-specific state
-                          : isPlaying // Non-practice mode: use general playback state (for reference audio playback)
-                      }
+                      studentPitch={[]}
+                      isRecording={false}
+                      isPlaying={isPlaying && !!refWaveSurfer.current?.isPlaying()}
                       currentTime={
-                        isPracticeMode
-                          ? practiceTime // Practice mode: use practice time
-                          : isPlaying && refWaveSurfer.current?.isPlaying()
-                          ? playbackTime || 0 // Non-practice mode: use playback time when reference audio is playing
-                          : 0 // No cursor when not playing
+                        isPlaying && refWaveSurfer.current?.isPlaying()
+                          ? playbackTime || 0
+                          : 0
                       }
                       referenceDuration={referenceDuration}
                       referenceAudioUrl={
@@ -2838,34 +2810,23 @@ const TrainingStudio: React.FC = () => {
                           ? uploadedRefUrl
                           : (selectedRef?.url || "")
                       }
-                      studentAudioUrl={practiceAudioUrl}
-                      studentAudioBlob={
-                        // Use practiceAudioBlob when in practice mode or after practice
-                        // Otherwise use studentBlob (from regular recording)
-                        isPracticeMode || practiceAudioBlob ? practiceAudioBlob : studentBlob
-                      }
+                      studentAudioUrl={null}
+                      studentAudioBlob={null}
                       onSeek={(progress) => {
-                        if (refWaveSurfer.current && !refWaveSurfer.current.isDestroyed && referenceDuration > 0) {
+                        if (
+                          refWaveSurfer.current &&
+                          !refWaveSurfer.current.isDestroyed &&
+                          referenceDuration > 0
+                        ) {
                           try {
                             refWaveSurfer.current.seekTo(progress);
                           } catch (error) {
-                            console.warn('Error seeking audio:', error);
+                            console.warn("Error seeking audio:", error);
                           }
                         }
                       }}
                       height={pitchGraphHeight}
-                      markers={analysisResult?.pitchData?.markers || []}
-                      onMarkerClick={(time) => {
-                        // Seek reference audio to marker time
-                        if (refWaveSurfer.current && referenceDuration > 0) {
-                          refWaveSurfer.current.seekTo(
-                            time / referenceDuration
-                          );
-                          if (!isPlaying) {
-                            refWaveSurfer.current.play();
-                          }
-                        }
-                      }}
+                      markers={[]}
                     />
 
                     {/* Quranic Text Display - Always show below waveform when text segments are available (Admin and Qari only) */}
@@ -2944,17 +2905,6 @@ const TrainingStudio: React.FC = () => {
                         <span className='w-3 h-3 bg-emerald-500 rounded-full'></span>
                         Reference (Green) - Static
                       </span>
-                      {(isPracticeMode ||
-                        studentPitchData.length > 0 ||
-                        (analysisResult?.pitchData?.student &&
-                          analysisResult.pitchData.student.length > 0)) && (
-                        <span className='inline-flex items-center gap-1'>
-                          <span className='w-3 h-3 bg-red-500 rounded-full'></span>
-                          {isPracticeMode
-                            ? "Your Practice (Red) - Live"
-                            : "Your Recitation (Red)"}
-                        </span>
-                      )}
                     </div>
                     {isPracticeMode && (
                       <div className='mt-2 text-xs text-center text-slate-400'>
@@ -3203,11 +3153,13 @@ const TrainingStudio: React.FC = () => {
                   analysisResult.pitchData.reference.length > 0);
               const hasStudentPitch =
                 recordingPitchData.length > 0 || // During/after recording
+                studentPitchData.length > 0 || // During/after fullscreen practice recording
                 followModePitchData.length > 0 || // During/after follow mode
                 (analysisResult?.pitchData?.student &&
                   analysisResult.pitchData.student.length > 0); // After analysis
               // Show graph if we have pitch data OR if we're currently recording (to show live graph)
-              const shouldShow = hasRefPitch || hasStudentPitch || isRecording;
+              const shouldShow =
+                hasRefPitch || hasStudentPitch || isRecording || isPracticeMode;
 
               console.log("📈 Pitch graph render check (Test Mode):", {
                 hasRefPitch,
@@ -3215,6 +3167,7 @@ const TrainingStudio: React.FC = () => {
                 isRecording,
                 shouldShow,
                 recordingPitchLength: recordingPitchData.length,
+                practicePitchLength: studentPitchData.length,
                 refPitchLength: referencePitchData.length,
                 refPitchFirstPoint: referencePitchData[0],
                 refPitchLastPoint:
@@ -3296,14 +3249,18 @@ const TrainingStudio: React.FC = () => {
                       : // After recording stops, preserve recording data so graph remains visible
                       recordingPitchData && recordingPitchData.length > 0
                       ? recordingPitchData
+                      : studentPitchData.length > 0
+                      ? studentPitchData
                       : followModePitchData.length > 0
                       ? followModePitchData
                       : [] // No student pitch available yet
                   }
-                  isRecording={isRecording || isFollowingReference} // Include follow mode
+                  isRecording={isPracticeMode || isRecording || isFollowingReference} // Include practice/follow mode
                   isPlaying={false} // Never play audio during recording (unlike practice mode)
                   currentTime={
-                    isRecording
+                    isPracticeMode
+                      ? practiceTime
+                      : isRecording
                       ? recordingTime // During recording, use recording time - flows like practice mode
                       : isFollowingReference &&
                         refWaveSurfer.current?.isPlaying()

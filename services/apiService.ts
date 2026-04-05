@@ -76,20 +76,25 @@ export const analyzeRecitation = async (
   try {
     const formData = new FormData();
 
-    // Convert student recording to WAV format for better compatibility
-    // Browser MediaRecorder typically creates WebM or Ogg, but backend may prefer WAV
+    // Always send WAV to avoid backend ffmpeg dependency for WebM conversion.
     let userAudioFile: File;
-    try {
-      const wavBlob = await convertBlobToWav(studentBlob);
-      userAudioFile = new File([wavBlob], "recitation.wav", {
+    if ((studentBlob.type || "").toLowerCase().includes("wav")) {
+      userAudioFile = new File([studentBlob], "recitation.wav", {
         type: "audio/wav",
       });
-    } catch (error) {
-      // Fallback: use original blob if conversion fails
-      console.warn("WAV conversion failed, using original format:", error);
-      userAudioFile = new File([studentBlob], "recitation.webm", {
-        type: studentBlob.type || "audio/webm",
-      });
+    } else {
+      try {
+        const wavBlob = await convertBlobToWav(studentBlob);
+        userAudioFile = new File([wavBlob], "recitation.wav", {
+          type: "audio/wav",
+        });
+      } catch (error) {
+        console.error("WAV conversion failed in browser:", error);
+        throw new Error(
+          "Could not convert recording to WAV in browser. " +
+            "Retry in Chrome/Edge, or install ffmpeg on backend to support WebM."
+        );
+      }
     }
 
     formData.append("user_audio", userAudioFile, userAudioFile.name);
@@ -275,13 +280,19 @@ export const analyzeRecitation = async (
       scoreBreakdown,
     };
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error || "");
     console.error("Scoring Service Error:", error);
     return {
       score: 0,
       normalizedScore: 0,
       feedback:
         error instanceof Error
-          ? `Error: ${error.message}`
+          ? `Error: ${
+              errorMessage.toLowerCase().includes("ffmpeg not found")
+                ? "Backend ffmpeg missing for WebM conversion. Install ffmpeg or keep uploads in WAV."
+                : error.message
+            }`
           : "Failed to connect to scoring server. Please check if the backend is running on port 8000.",
       segments: [],
     };
