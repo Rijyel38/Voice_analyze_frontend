@@ -24,7 +24,11 @@ import { RootState } from "../store";
 import { APP_COLORS } from "../constants";
 import { formatSegmentScore, formatSegmentRange, formatScoreWithPercent } from "../utils/scoreFormat";
 import { AnalysisResult, PitchData, PitchDataResponse } from "../types";
-import { PitchPoint, RealTimePitchExtractor } from "../services/pitchExtractor";
+import {
+  PitchPoint,
+  RealTimePitchExtractor,
+  LIVE_PITCH_FILTER_OPTIONS,
+} from "../services/pitchExtractor";
 import {
   Play,
   Pause,
@@ -1437,13 +1441,11 @@ const TrainingStudio: React.FC = () => {
 
       // Use Stream 2 (filtered) for pitch extraction - provides clean pitch visualization
       if (filteredStream) {
-        await extractor.startFromStream(filteredStream, pitchUpdateCallback, {
-          minHz: 0, // No minimum - capture all frequencies
-          maxHz: Infinity, // No maximum - capture all frequencies
-          minConfidence: 0.0, // No confidence threshold - capture everything
-          smoothingWindow: 1, // No smoothing - raw data only
-          enabled: false, // DISABLED - no filtering at all
-        });
+        await extractor.startFromStream(
+          filteredStream,
+          pitchUpdateCallback,
+          LIVE_PITCH_FILTER_OPTIONS
+        );
       } else {
         console.warn(
           "Stream 2 (filtered) not available - pitch extraction disabled"
@@ -3398,13 +3400,7 @@ const TrainingStudio: React.FC = () => {
                             await extractor.startFromStream(
                               stream,
                               handleFollowModePitchUpdate,
-                              {
-                                minHz: 0,
-                                maxHz: Infinity,
-                                minConfidence: 0.0,
-                                smoothingWindow: 1,
-                                enabled: false,
-                              }
+                              LIVE_PITCH_FILTER_OPTIONS
                             );
 
                             console.log(
@@ -3548,13 +3544,7 @@ const TrainingStudio: React.FC = () => {
                           await extractor.startFromStream(
                             stream,
                             handleFollowModePitchUpdate,
-                            {
-                              minHz: 0,
-                              maxHz: Infinity,
-                              minConfidence: 0.0,
-                              smoothingWindow: 1,
-                              enabled: false,
-                            }
+                            LIVE_PITCH_FILTER_OPTIONS
                           );
 
                           console.log(

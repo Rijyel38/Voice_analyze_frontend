@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Mic, Square, RotateCcw } from "lucide-react";
-import { RealTimePitchExtractor, PitchPoint } from "../services/pitchExtractor";
+import {
+  RealTimePitchExtractor,
+  PitchPoint,
+  LIVE_PITCH_FILTER_OPTIONS,
+} from "../services/pitchExtractor";
 import { PitchData } from "../types";
 
 interface RecorderProps {
@@ -83,13 +87,11 @@ const Recorder: React.FC<RecorderProps> = ({
         pitchExtractorRef.current = extractor;
         // Apply minimal filtering for voice pitch detection (similar to practice mode)
         // This ensures actual Hz values are detected and displayed correctly
-        await extractor.startFromStream(stream, onPitchUpdate, {
-          minHz: 60, // Minimum frequency for voice (Hz) - ensures valid pitch detection
-          maxHz: 1200, // Maximum frequency for voice (Hz) - typical vocal range
-          minConfidence: 0.3, // Low confidence threshold - capture most voice frequencies
-          smoothingWindow: 3, // Light smoothing for cleaner display
-          enabled: true, // ENABLED - apply filtering to get accurate Hz values
-        });
+        await extractor.startFromStream(
+          stream,
+          onPitchUpdate,
+          LIVE_PITCH_FILTER_OPTIONS
+        );
       }
 
       mediaRecorder.ondataavailable = (e) => {

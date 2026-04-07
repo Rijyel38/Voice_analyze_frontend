@@ -19,6 +19,16 @@ export interface PitchFilterOptions {
   enabled?: boolean;     // Default: false (no filtering)
 }
 
+// Shared live pitch config used by both practice and recording graphs.
+// Keeping one source of truth prevents behavior drift between modes.
+export const LIVE_PITCH_FILTER_OPTIONS: PitchFilterOptions = {
+  minHz: 60,
+  maxHz: 1200,
+  minConfidence: 0.3,
+  smoothingWindow: 3,
+  enabled: true,
+};
+
 /**
  * Filter pitch point by range and confidence
  * Returns null if pitch should be filtered out
