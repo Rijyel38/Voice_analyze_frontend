@@ -24,8 +24,8 @@ export interface PitchFilterOptions {
 export const LIVE_PITCH_FILTER_OPTIONS: PitchFilterOptions = {
   minHz: 60,
   maxHz: 1200,
-  minConfidence: 0.35,
-  smoothingWindow: 1,
+  minConfidence: 0.45,
+  smoothingWindow: 2,
   enabled: true,
 };
 
@@ -142,9 +142,9 @@ export class RealTimePitchExtractor {
   // Track previous pitch for smoothing (but NOT for gap filling)
   private previousFrequency: number | null = null;
 
-  // Smoothing buffer for reducing jitter
-  private recentFrequencies: number[] = [];
-  private readonly SMOOTHING_WINDOW = 7; // Increased from 5 for better stability
+  // EMA smoothing state for live pitch (continuous, less staircase than median).
+  private emaFrequency: number | null = null;
+  private readonly EMA_ALPHA = 0.35;
   
   // Pitch filtering options - NO RANGE RESTRICTIONS
   private filterOptions: PitchFilterOptions = {
@@ -155,9 +155,9 @@ export class RealTimePitchExtractor {
     enabled: false,       // DISABLED - no filtering at all
   };
   
-  // Recent pitch buffer for smoothing
+  // Recent pitch buffer for optional post-filter smoothing
   private recentPitchBuffer: PitchPoint[] = [];
-  private readonly MAX_BUFFER_SIZE = 20; // Increased from 15 for better smoothing
+  private readonly MAX_BUFFER_SIZE = 20;
 
   /**
    * Set pitch filter options
@@ -231,7 +231,7 @@ export class RealTimePitchExtractor {
     this.startTime = Date.now();
     this.isRunning = true;
     this.previousFrequency = null;
-    this.recentFrequencies = [];
+    this.emaFrequency = null;
     this.recentPitchBuffer = [];
 
     console.log(
@@ -317,25 +317,12 @@ export class RealTimePitchExtractor {
       this.filterOptions.smoothingWindow &&
       this.filterOptions.smoothingWindow > 1
     ) {
-      // Apply outlier detection before adding to buffer
-      if (this.recentFrequencies.length >= 3) {
-        if (this.detectOutlier(finalFrequency, this.recentFrequencies)) {
-          // Use median of recent frequencies instead of current value
-          const sortedFreqs = [...this.recentFrequencies].sort((a, b) => a - b);
-          finalFrequency = sortedFreqs[Math.floor(sortedFreqs.length / 2)];
-          console.log('[PitchExtractor] Outlier detected and corrected');
-        }
-      }
-      
-      // Add to smoothing buffer
-      this.recentFrequencies.push(finalFrequency);
-      if (this.recentFrequencies.length > this.SMOOTHING_WINDOW) {
-        this.recentFrequencies.shift();
-      }
-
-      // Use median of recent frequencies for stability
-      const sortedFreqs = [...this.recentFrequencies].sort((a, b) => a - b);
-      finalFrequency = sortedFreqs[Math.floor(sortedFreqs.length / 2)];
+      // EMA smoothing produces a natural contour without staircase plateaus.
+      finalFrequency =
+        this.emaFrequency === null
+          ? finalFrequency
+          : this.emaFrequency + (finalFrequency - this.emaFrequency) * this.EMA_ALPHA;
+      this.emaFrequency = finalFrequency;
 
       // Check for octave errors and correct them
       if (this.previousFrequency !== null && finalFrequency !== null) {
@@ -362,7 +349,7 @@ export class RealTimePitchExtractor {
       this.previousFrequency = finalFrequency;
     } else {
       // Null pitch - clear smoothing buffer to avoid stale data
-      this.recentFrequencies = [];
+      this.emaFrequency = null;
     }
 
     // Additional smoothing using recent pitch buffer (for visual stability)
@@ -422,7 +409,7 @@ export class RealTimePitchExtractor {
       normalized.reduce((sum, val) => sum + val * val, 0) / normalized.length;
 
     // More lenient energy threshold
-    if (energy < 0.00008) {
+    if (energy < 0.00012) {
       return { frequency: null, confidence: 0.0 };
     }
 
@@ -466,7 +453,7 @@ export class RealTimePitchExtractor {
     }
 
     // Threshold for voiced detection - balanced for quality
-    const CORRELATION_THRESHOLD = 0.1;
+    const CORRELATION_THRESHOLD = 0.13;
 
     if (bestCorrelation < CORRELATION_THRESHOLD || bestPeriod === 0) {
       return { frequency: null, confidence: 0.0 };
@@ -537,7 +524,7 @@ export class RealTimePitchExtractor {
     this.dataArray = null;
     this.onPitchUpdate = null;
     this.previousFrequency = null;
-    this.recentFrequencies = [];
+    this.emaFrequency = null;
     this.recentPitchBuffer = [];
 
     console.log("[PitchExtractor] Stopped");

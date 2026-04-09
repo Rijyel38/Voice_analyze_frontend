@@ -296,6 +296,14 @@ const TrainingStudio: React.FC = () => {
   const practiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const practicePcmRecorderRef = useRef<PracticePcmRecorder | null>(null);
 
+  const clearStudentGraphs = () => {
+    setRecordingPitchData([]);
+    setStudentPitchData([]);
+    setFollowModePitchData([]);
+    setRecordingTime(0);
+    setPracticeTime(0);
+  };
+
   const flushPracticePcmRecorder = (): Blob | null => {
     const recorder = practicePcmRecorderRef.current;
     if (!recorder) return null;
@@ -3087,14 +3095,24 @@ const TrainingStudio: React.FC = () => {
                   <h3 className='text-sm font-semibold text-slate-700 mb-2'>
                     Pitch Comparison Graph
                   </h3>
-                  <button
-                    onClick={() => setIsFullScreenMode(true)}
-                    className='flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg transition-colors text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100'
-                    title='Open recording graph in full-screen mode'
-                  >
-                    <Maximize2 size={14} />
-                    Full Screen
-                  </button>
+                  <div className='flex items-center gap-2'>
+                    <button
+                      onClick={clearStudentGraphs}
+                      className='flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg transition-colors text-red-600 bg-red-50 border border-red-200 hover:bg-red-100'
+                      title='Clear student (red) graph'
+                    >
+                      <X size={14} />
+                      Delete Graph
+                    </button>
+                    <button
+                      onClick={() => setIsFullScreenMode(true)}
+                      className='flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg transition-colors text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100'
+                      title='Open recording graph in full-screen mode'
+                    >
+                      <Maximize2 size={14} />
+                      Full Screen
+                    </button>
+                  </div>
                 </div>
                 <CombinedWaveformPitch
                   key={`test-graph-${selectedRef?.id || 'no-ref'}`}

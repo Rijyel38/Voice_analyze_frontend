@@ -1028,8 +1028,10 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
         // Draw connected line while suppressing spike artifacts.
         let lastVoicedTime: number | null = null;
         let lastSmoothedY: number | null = null;
-        const MAX_HZ_PER_SEC = 380;
-        const EMA_ALPHA = 0.28;
+        let hadUnvoicedGap = false;
+        const MAX_HZ_PER_SEC = 260;
+        const EMA_ALPHA = 0.22;
+        const RECONNECT_RAMP_SECONDS = 0.12;
         for (const point of sortedPitch) {
           // Skip points outside visible range
           if (point.time < minVisibleTime || point.time > maxVisibleTime)
@@ -1050,6 +1052,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
             if (lastValidPoint !== null) {
               ctx.lineTo(clippedX, lastValidPoint.y);
               lastValidPoint = { x: clippedX, y: lastValidPoint.y };
+              hadUnvoicedGap = true;
             }
             lastSmoothedY = null;
             continue;
@@ -1071,7 +1074,13 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
             firstPoint = false;
           } else {
             // Slope limiter: suppress impossible jump spikes while keeping continuity.
-            const deltaSec = Math.max(point.time - (lastVoicedTime || point.time), 0.001);
+            const rawDeltaSec = Math.max(
+              point.time - (lastVoicedTime || point.time),
+              0.001
+            );
+            const deltaSec = hadUnvoicedGap
+              ? Math.min(rawDeltaSec, RECONNECT_RAMP_SECONDS)
+              : rawDeltaSec;
             const maxDeltaY = (MAX_HZ_PER_SEC * deltaSec * graphHeight) / freqRange;
             const rawDeltaY = y - lastValidPoint.y;
             if (Math.abs(rawDeltaY) > maxDeltaY) {
@@ -1085,6 +1094,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
           lastValidPoint = { x: clippedX, y };
           lastVoicedTime = point.time;
           lastSmoothedY = y;
+          hadUnvoicedGap = false;
         }
         ctx.stroke();
       }
