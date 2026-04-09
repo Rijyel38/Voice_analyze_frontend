@@ -1155,16 +1155,12 @@ const TrainingStudio: React.FC = () => {
       time: mappedTime, // Use mapped time for alignment with reference timeline
     };
 
-    // Update state - reduced duplicate detection for smoother updates
+    // Update state - replace very-close timestamp sample instead of dropping it.
     setStudentPitchData((prev) => {
-      // Check last 3 points (reduced from 5) with increased tolerance
-      const recentPoints = prev.slice(-3);
-      const isDuplicate = recentPoints.some(
-        (p) => Math.abs(p.time - mappedTime) < 0.05 // Increased from 0.03s
-      );
-
-      if (isDuplicate) {
-        return prev; // Skip duplicate
+      const lastPoint = prev.length > 0 ? prev[prev.length - 1] : null;
+      if (lastPoint && Math.abs(lastPoint.time - mappedTime) < 0.02) {
+        const updated = [...prev.slice(0, -1), mappedPitch];
+        return updated;
       }
 
       // Add new point - this builds the graph continuously as you speak
@@ -1211,16 +1207,12 @@ const TrainingStudio: React.FC = () => {
       time: mappedTime, // Use mapped time for alignment with reference timeline
     };
 
-    // Update state - same duplicate detection as practice mode
+    // Update state - replace very-close timestamp sample instead of dropping it.
     setRecordingPitchData((prev) => {
-      // Check last 3 points (same as practice mode) with increased tolerance
-      const recentPoints = prev.slice(-3);
-      const isDuplicate = recentPoints.some(
-        (p) => Math.abs(p.time - mappedTime) < 0.05 // Same tolerance as practice
-      );
-
-      if (isDuplicate) {
-        return prev; // Skip duplicate
+      const lastPoint = prev.length > 0 ? prev[prev.length - 1] : null;
+      if (lastPoint && Math.abs(lastPoint.time - mappedTime) < 0.02) {
+        const updated = [...prev.slice(0, -1), mappedPitch];
+        return updated;
       }
 
       // Add new point - this builds the graph continuously as you speak
@@ -1453,23 +1445,11 @@ const TrainingStudio: React.FC = () => {
         // Pitch extraction won't work, but recording might still work
       }
 
-      // Start playing reference audio so student can hear it while practicing
-      if (refWaveSurfer.current) {
-        // Stop if already playing, then restart from beginning
-        if (refWaveSurfer.current.isPlaying()) {
-          refWaveSurfer.current.stop();
-        }
-        refWaveSurfer.current.seekTo(0); // Start from beginning
-        refWaveSurfer.current.play();
-        setIsPlaying(true);
-        console.log(
-          "Reference audio started - student can now hear and follow the reference"
-        );
-      } else {
-        console.warn(
-          "Reference audio not loaded yet - practice will start without audio playback"
-        );
-      }
+      // Keep practice capture conditions aligned with recording mode:
+      // do not auto-play reference audio on practice start.
+      // Users can still play reference manually when needed.
+      setIsPlaying(false);
+      setPlaybackTime(0);
 
       console.log(
         "Practice mode started - pitch graph will build as you speak..."
@@ -3117,9 +3097,7 @@ const TrainingStudio: React.FC = () => {
                   </button>
                 </div>
                 <CombinedWaveformPitch
-                  key={`test-graph-${selectedRef?.id || 'no-ref'}-${
-                    analysisResult ? "analyzed" : "not-analyzed"
-                  }`}
+                  key={`test-graph-${selectedRef?.id || 'no-ref'}`}
                   referencePitch={
                     // Show reference pitch for comparison
                     analysisResult?.pitchData?.reference &&
@@ -3155,21 +3133,13 @@ const TrainingStudio: React.FC = () => {
                     }
                   }}
                   studentPitch={
-                    // Make recording mode work EXACTLY like practice mode
-                    // During recording: use recordingPitchData directly (same as practice uses studentPitchData)
-                    isRecording
-                      ? recordingPitchData // Recording: live pitch from real-time extractor (same pattern as practice)
-                      : // After recording: use student pitch from analysisResult (backend-extracted during scoring)
-                      analysisResult?.pitchData?.student &&
-                        analysisResult.pitchData.student.length > 0
-                      ? analysisResult.pitchData.student.map((p: any) => ({
-                          time: p.time || 0,
-                          frequency: p.f_hz || null, // CRITICAL: Map f_hz to frequency
-                          midi: p.midi || null,
-                          confidence: p.confidence || 0.9,
-                        }))
-                      : // After recording stops, preserve recording data so graph remains visible
-                      recordingPitchData && recordingPitchData.length > 0
+                    // Keep one visual source before/after scoring for consistency:
+                    // always draw student line from live-captured frontend pitch arrays.
+                    isPracticeMode
+                      ? studentPitchData
+                      : isRecording
+                      ? recordingPitchData
+                      : recordingPitchData && recordingPitchData.length > 0
                       ? recordingPitchData
                       : studentPitchData.length > 0
                       ? studentPitchData
@@ -4140,22 +4110,15 @@ const TrainingStudio: React.FC = () => {
         studentPitch={
           isPracticeMode
             ? studentPitchData // Practice: live pitch from real-time extractor
-            : // Test mode: Priority: analysis result > live recording data
-            // After analysis: use backend-extracted student pitch (more accurate)
-            // During/after recording (before analysis): use live recording pitch data
-            analysisResult?.pitchData?.student &&
-              analysisResult.pitchData.student.length > 0
-            ? analysisResult.pitchData.student.map((p: any) => ({
-                time: p.time || 0,
-                frequency: p.f_hz || null,
-                midi: p.midi || null,
-                confidence: p.confidence || 0.9,
-              }))
+            : isRecording
+            ? recordingPitchData
             : recordingPitchData.length > 0
             ? recordingPitchData // Show live recording data during/after recording
             : // After practice stops, preserve practice data so graph remains visible
             studentPitchData && studentPitchData.length > 0
             ? studentPitchData
+            : followModePitchData.length > 0
+            ? followModePitchData
             : [] // No student pitch available yet
         }
         isRecording={isPracticeMode || isRecording}

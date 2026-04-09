@@ -45,7 +45,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
   // Zoom and pan state - use external zoomLevel if provided, otherwise use internal state
   const [internalZoomLevel, setInternalZoomLevel] = useState(1.0); // 1.0 = 100%, 2.0 = 200%, etc.
   const effectiveZoomLevel = zoomLevel !== undefined ? zoomLevel : internalZoomLevel;
-  
+
   // Update internal zoom when external zoom changes
   useEffect(() => {
     if (zoomLevel !== undefined) {
@@ -266,16 +266,16 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX;
       const mouseY = e.clientY;
-      
+
       // CRITICAL: First check if mouse coordinates are within THIS component's canvas bounds
       // This is the primary check to ensure each graph only processes events over its own area
       const tolerance = isFullScreen ? 100 : 10;
-      const isMouseOverThisCanvas = 
+      const isMouseOverThisCanvas =
         mouseX >= rect.left - tolerance &&
         mouseX <= rect.right + tolerance &&
         mouseY >= rect.top - tolerance &&
         mouseY <= rect.bottom + tolerance;
-      
+
       if (!isMouseOverThisCanvas) {
         // Mouse is not over this canvas, ignore the event
         // This prevents regular mode handler from processing fullscreen events and vice versa
@@ -287,9 +287,9 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
       const eventTarget = e.target;
       const isEventTargetDocumentOrWindow = eventTarget === document || eventTarget === window;
       const isEventInThisComponent = isEventTargetDocumentOrWindow ||
-                                     (eventTarget instanceof Node && canvas.contains(eventTarget)) || 
+                                     (eventTarget instanceof Node && canvas.contains(eventTarget)) ||
                                      (eventTarget instanceof Node && container && container.contains(eventTarget));
-      
+
       // If event target is document/window, rely on mouse position check (already passed above)
       // Otherwise, ensure event target is within this component
       if (!isEventTargetDocumentOrWindow && !isEventInThisComponent) {
@@ -299,7 +299,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
 
       e.preventDefault();
       e.stopPropagation();
-      
+
       const relativeX = mouseX - rect.left;
       const padding = 60;
       const graphWidth = rect.width - padding * 2;
@@ -345,7 +345,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
           Math.min(maxPanTime / 2, newPanTime)
         );
         setPanOffset(clampedPanTime * newPixelsPerSecond);
-        
+
         // Update zoom using external callback or internal state
         if (onZoomChange) {
           onZoomChange(newZoom);
@@ -357,7 +357,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
 
     // Attach event listeners with appropriate phase
     const targetElement = container || canvas;
-    
+
     if (isFullScreen) {
       // In fullscreen mode, use capture phase to catch events before regular mode handler
       // This ensures fullscreen zoom takes priority
@@ -569,86 +569,6 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
     }
 
     return currentPoints;
-  };
-
-  // Filter student pitch data to remove spikes and smooth the contour
-  const filterStudentPitch = (pitchData: PitchPoint[]): PitchPoint[] => {
-    if (pitchData.length === 0) return pitchData;
-
-    // Step 1: Clamp frequency range (80-350 Hz for male recitation)
-    const MIN_FREQ = 80;
-    const MAX_FREQ = 350;
-    let clamped = pitchData.map((p) => {
-      if (p.frequency === null || p.frequency === undefined) return p;
-      const clampedFreq = Math.max(MIN_FREQ, Math.min(MAX_FREQ, p.frequency));
-      return {
-        ...p,
-        frequency: clampedFreq,
-        midi: clampedFreq ? 69 + 12 * Math.log2(clampedFreq / 440) : null,
-      };
-    });
-
-    // Step 2: Median filtering to remove outliers (window size 5)
-    const MEDIAN_WINDOW = 5;
-    if (clamped.length < MEDIAN_WINDOW) return clamped;
-
-    const medianFiltered: PitchPoint[] = [];
-    const halfWindow = Math.floor(MEDIAN_WINDOW / 2);
-
-    for (let i = 0; i < clamped.length; i++) {
-      const window = clamped.slice(
-        Math.max(0, i - halfWindow),
-        Math.min(clamped.length, i + halfWindow + 1)
-      );
-
-      const validFreqs = window
-        .map((p) => p.frequency)
-        .filter((f) => f !== null && f !== undefined) as number[];
-
-      if (validFreqs.length > 0) {
-        const sorted = [...validFreqs].sort((a, b) => a - b);
-        const median = sorted[Math.floor(sorted.length / 2)];
-        medianFiltered.push({
-          ...clamped[i],
-          frequency: median,
-          midi: median ? 69 + 12 * Math.log2(median / 440) : null,
-        });
-      } else {
-        medianFiltered.push(clamped[i]);
-      }
-    }
-
-    // Step 3: Enhanced moving average smoothing (window size 5 for smoother melodic flow)
-    const SMOOTHING_WINDOW = 5;
-    if (medianFiltered.length < SMOOTHING_WINDOW) return medianFiltered;
-
-    const smoothed: PitchPoint[] = [];
-    const smoothHalfWindow = Math.floor(SMOOTHING_WINDOW / 2);
-
-    for (let i = 0; i < medianFiltered.length; i++) {
-      const window = medianFiltered.slice(
-        Math.max(0, i - smoothHalfWindow),
-        Math.min(medianFiltered.length, i + smoothHalfWindow + 1)
-      );
-
-      const validFreqs = window
-        .map((p) => p.frequency)
-        .filter((f) => f !== null && f !== undefined) as number[];
-
-      if (validFreqs.length > 0) {
-        const average =
-          validFreqs.reduce((sum, f) => sum + f, 0) / validFreqs.length;
-        smoothed.push({
-          ...medianFiltered[i],
-          frequency: average,
-          midi: average ? 69 + 12 * Math.log2(average / 440) : null,
-        });
-      } else {
-        smoothed.push(medianFiltered[i]);
-      }
-    }
-
-    return smoothed;
   };
 
   // Draw graph with continuous animation loop
@@ -1005,10 +925,10 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
           const x =
             padding +
             ((point.time - minVisibleTime) / actualVisibleRange) * graphWidth;
-          
+
           // CRITICAL: Clip x coordinate to canvas bounds to prevent drawing outside graph area
           const clippedX = Math.max(padding, Math.min(displayWidth - padding, x));
-          
+
           const y =
             displayHeight -
             padding -
@@ -1031,7 +951,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
             ...smoothedReferencePitch.map((p) => p.time)
           );
           const actualVisibleRange = maxVisibleTime - minVisibleTime;
-          
+
           // CRITICAL: Only extend if referenceDuration is within visible range
           if (
             referenceDuration > lastPitchTime &&
@@ -1043,7 +963,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
               padding +
               ((referenceDuration - minVisibleTime) / actualVisibleRange) *
                 graphWidth;
-            
+
             // CRITICAL: Clip to canvas bounds to prevent drawing outside graph area
             const clippedEndX = Math.max(padding, Math.min(displayWidth - padding, endX));
             ctx.lineTo(clippedEndX, lastValidPoint.y);
@@ -1092,11 +1012,8 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
             ? studentPitch // Show all points during practice/recording and when not playing
             : studentPitch.filter((p) => p.time <= (currentTime || Infinity)); // Filter for recorded playback only
 
-        // Apply filtering to remove spikes and smooth the contour
-        const filteredStudentPitch = filterStudentPitch(visibleStudentPitch);
-
-        // Sort by time to ensure proper line drawing
-        const sortedPitch = [...filteredStudentPitch].sort(
+        // Use raw live stream points to keep mode parity and avoid graph-side spike artifacts.
+        const sortedPitch = [...visibleStudentPitch].sort(
           (a, b) => a.time - b.time
         );
 
@@ -1108,7 +1025,11 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
           `[Graph] Student pitch points in visible range: ${pointsInRange} / ${sortedPitch.length}`
         );
 
-        // Draw the line connecting all pitch points - FIXED: continuous line
+        // Draw connected line while suppressing spike artifacts.
+        let lastVoicedTime: number | null = null;
+        let lastSmoothedY: number | null = null;
+        const MAX_HZ_PER_SEC = 380;
+        const EMA_ALPHA = 0.28;
         for (const point of sortedPitch) {
           // Skip points outside visible range
           if (point.time < minVisibleTime || point.time > maxVisibleTime)
@@ -1119,72 +1040,53 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
           const x =
             padding +
             ((point.time - minVisibleTime) / actualVisibleRange) * graphWidth;
-          
+
           // CRITICAL: Clip x coordinate to canvas bounds to prevent drawing outside graph area
           const clippedX = Math.max(padding, Math.min(displayWidth - padding, x));
 
           if (point.frequency === null || point.frequency === undefined) {
-            // For null frequencies, interpolate from last valid point
+            // Keep a continuous contour by carrying the last voiced level
+            // across unvoiced gaps.
             if (lastValidPoint !== null) {
-              // Draw horizontal line to current x position
               ctx.lineTo(clippedX, lastValidPoint.y);
-            } else {
-              // No previous valid point - start new segment
-              firstPoint = true;
+              lastValidPoint = { x: clippedX, y: lastValidPoint.y };
             }
+            lastSmoothedY = null;
             continue;
           }
 
-          const y =
+          const rawY =
             displayHeight -
             padding -
             ((point.frequency - finalMinFreq) / freqRange) * graphHeight;
+          let y = rawY;
 
-          if (firstPoint) {
+          // Display-only smoothing for natural contour without mutating source pitch.
+          if (lastSmoothedY !== null) {
+            y = lastSmoothedY + (rawY - lastSmoothedY) * EMA_ALPHA;
+          }
+
+          if (firstPoint || lastValidPoint === null) {
             ctx.moveTo(clippedX, y);
             firstPoint = false;
           } else {
-            // If we had a gap, draw from last valid point
-            const actualVisibleRange = maxVisibleTime - minVisibleTime;
-            const expectedXSpacing = graphWidth / (actualVisibleRange * 10); // Approximate spacing
-            if (
-              lastValidPoint !== null &&
-              Math.abs(lastValidPoint.x - clippedX) > expectedXSpacing * 2
-            ) {
-              ctx.lineTo(lastValidPoint.x, lastValidPoint.y);
-              ctx.lineTo(clippedX, y);
-            } else {
-              ctx.lineTo(clippedX, y);
+            // Slope limiter: suppress impossible jump spikes while keeping continuity.
+            const deltaSec = Math.max(point.time - (lastVoicedTime || point.time), 0.001);
+            const maxDeltaY = (MAX_HZ_PER_SEC * deltaSec * graphHeight) / freqRange;
+            const rawDeltaY = y - lastValidPoint.y;
+            if (Math.abs(rawDeltaY) > maxDeltaY) {
+              y =
+                lastValidPoint.y +
+                Math.sign(rawDeltaY) * maxDeltaY;
             }
+            ctx.lineTo(clippedX, y);
           }
 
           lastValidPoint = { x: clippedX, y };
+          lastVoicedTime = point.time;
+          lastSmoothedY = y;
         }
         ctx.stroke();
-
-        // Draw points as small circles for better visibility (only for detected pitch)
-        for (const point of sortedPitch) {
-          if (point.frequency === null || point.frequency === undefined)
-            continue;
-
-          // Skip points outside visible range
-          if (point.time < minVisibleTime || point.time > maxVisibleTime)
-            continue;
-
-          const actualVisibleRange = maxVisibleTime - minVisibleTime;
-          const x =
-            padding +
-            ((point.time - minVisibleTime) / actualVisibleRange) * graphWidth;
-          const y =
-            displayHeight -
-            padding -
-            ((point.frequency - finalMinFreq) / freqRange) * graphHeight;
-
-          ctx.fillStyle = "#ef4444";
-          ctx.beginPath();
-          ctx.arc(x, y, 2, 0, 2 * Math.PI);
-          ctx.fill();
-        }
       }
 
       // Draw current time cursor (blue vertical line) - shows during recording and playback
@@ -1193,13 +1095,13 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
       if (currentTime > 0 && baseMaxTime > 0) {
         ctx.strokeStyle = "#3b82f6"; // Blue
         ctx.lineWidth = 2.5;
-        
+
         const actualVisibleRange = maxVisibleTime - minVisibleTime;
         const centerTime = (minVisibleTime + maxVisibleTime) / 2;
         const centerX = padding + graphWidth / 2;
-        
+
         let cursorX: number;
-        
+
         // If currentTime hasn't reached center yet, move the line with currentTime
         // Once currentTime reaches or passes center, keep the line fixed at center
         if (currentTime < centerTime) {
@@ -1211,14 +1113,14 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
           // Line is fixed at center
           cursorX = centerX;
         }
-        
+
         // Ensure cursor is within visible area
         if (cursorX >= padding && cursorX <= displayWidth - padding) {
           ctx.beginPath();
           ctx.moveTo(cursorX, padding);
           ctx.lineTo(cursorX, displayHeight - padding);
           ctx.stroke();
-          
+
           // Add a small circle at the top of the cursor for better visibility
           ctx.fillStyle = "#3b82f6";
           ctx.beginPath();
@@ -1751,10 +1653,10 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
                 onChange={handleScrollbarChange}
                 className='w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider'
                 style={{
-                  background: `linear-gradient(to right, 
-                    #10b981 0%, 
-                    #10b981 ${scrollbarValues.scrollPosition}%, 
-                    #cbd5e1 ${scrollbarValues.scrollPosition}%, 
+                  background: `linear-gradient(to right,
+                    #10b981 0%,
+                    #10b981 ${scrollbarValues.scrollPosition}%,
+                    #cbd5e1 ${scrollbarValues.scrollPosition}%,
                     #cbd5e1 100%)`,
                 }}
                 title={`Pan: ${

@@ -24,8 +24,8 @@ export interface PitchFilterOptions {
 export const LIVE_PITCH_FILTER_OPTIONS: PitchFilterOptions = {
   minHz: 60,
   maxHz: 1200,
-  minConfidence: 0.3,
-  smoothingWindow: 3,
+  minConfidence: 0.35,
+  smoothingWindow: 1,
   enabled: true,
 };
 
@@ -48,16 +48,23 @@ export function filterPitch(
     return pitch; // No filtering - return raw pitch data
   }
 
-  // NO CONFIDENCE FILTERING - capture everything (minConfidence defaults to 0.0)
-  // if (pitch.confidence < minConfidence) {
-  //   return { ...pitch, frequency: null, midi: null };
-  // }
+  if (pitch.frequency === null || pitch.frequency === undefined) {
+    return { ...pitch, frequency: null, midi: null };
+  }
 
-  // NO RANGE RESTRICTIONS - capture all frequencies
-  // Removed all frequency range filtering to capture complete voice data
-  // All frequencies are accepted - no filtering
+  if (!isFinite(pitch.frequency)) {
+    return { ...pitch, frequency: null, midi: null };
+  }
 
-  return pitch; // Return pitch data without any filtering
+  if (pitch.confidence < minConfidence) {
+    return { ...pitch, frequency: null, midi: null };
+  }
+
+  if (pitch.frequency < minHz || pitch.frequency > maxHz) {
+    return { ...pitch, frequency: null, midi: null };
+  }
+
+  return pitch;
 }
 
 /**
@@ -122,7 +129,7 @@ export function smoothPitchData(
 export class RealTimePitchExtractor {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
-  private dataArray: Float32Array | null = null;
+  private dataArray: Float32Array<ArrayBuffer> | null = null;
   private animationFrameId: number | null = null;
   private startTime: number = 0;
   private isRunning: boolean = false;
@@ -302,8 +309,14 @@ export class RealTimePitchExtractor {
       }
     }
 
-    // Apply smoothing ONLY if filtering is enabled (skip all smoothing when disabled)
-    if (this.filterOptions.enabled && finalFrequency !== null) {
+    // Apply smoothing ONLY when explicitly requested via smoothingWindow > 1.
+    // Live mode uses smoothingWindow=1 so extractor outputs near-raw pitch.
+    if (
+      this.filterOptions.enabled &&
+      finalFrequency !== null &&
+      this.filterOptions.smoothingWindow &&
+      this.filterOptions.smoothingWindow > 1
+    ) {
       // Apply outlier detection before adding to buffer
       if (this.recentFrequencies.length >= 3) {
         if (this.detectOutlier(finalFrequency, this.recentFrequencies)) {
@@ -344,10 +357,9 @@ export class RealTimePitchExtractor {
         frequency: finalFrequency,
         midi: finalFrequency ? this.hzToMidi(finalFrequency) : null,
       };
-    } else if (!this.filterOptions.enabled && finalFrequency !== null) {
-      // When filtering is disabled, use raw frequency without any smoothing
+    } else if (finalFrequency !== null) {
+      // Keep raw frequency when smoothing is disabled.
       this.previousFrequency = finalFrequency;
-      // Keep pitch point as-is (raw data)
     } else {
       // Null pitch - clear smoothing buffer to avoid stale data
       this.recentFrequencies = [];
@@ -387,7 +399,7 @@ export class RealTimePitchExtractor {
    * Returns null for silence/unvoiced - preserves timing
    */
   private detectPitch(
-    buffer: Float32Array,
+    buffer: Float32Array<ArrayBufferLike>,
     sampleRate: number,
     maxAmplitude: number,
     rms: number

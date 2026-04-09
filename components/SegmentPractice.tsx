@@ -259,13 +259,13 @@ const SegmentPractice: React.FC<SegmentPracticeProps> = ({
   if (segments.length === 0) return null;
 
   return (
-    <div className='space-y-4'>
+    <div className='space-y-2'>
       {/* Hidden waveform containers for playback */}
       <div className='hidden'>
         <div ref={refContainerRef}></div>
         <div ref={studentContainerRef}></div>
       </div>
-      <div className='bg-amber-50 border border-amber-200 rounded-lg p-4'>
+      <div className='bg-amber-50 border border-amber-200 rounded-lg p-3'>
         <h3 className='font-semibold text-amber-800 mb-2 flex items-center gap-2'>
           <Target size={18} />
           Adaptive Learning - Practice Low-Score Segments
