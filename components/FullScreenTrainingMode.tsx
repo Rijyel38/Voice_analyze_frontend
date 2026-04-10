@@ -82,6 +82,7 @@ interface FullScreenTrainingModeProps {
   // Waveform props
   referenceUrl?: string | null;
   studentBlob?: Blob | null;
+  fullscreenContext?: "practice" | "recording";
 }
 
 const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
@@ -135,6 +136,7 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
   markers = [],
   referenceUrl,
   studentBlob,
+  fullscreenContext = "recording",
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [showPracticeStats, setShowPracticeStats] = useState(false);
@@ -521,7 +523,9 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
           {/* Practice Controls Group */}
           <div className='flex items-center gap-2'>
             {/* Practice Mode Toggle */}
-            {onPracticeStart && onPracticeStop && (
+            {fullscreenContext === "practice" &&
+              onPracticeStart &&
+              onPracticeStop && (
               <button
                 onClick={() => {
                   if (isPracticeMode) {
@@ -595,7 +599,8 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
           </div>
 
           {/* Recording Controls Group */}
-          {(onRecordingStart || onRecordingStop) && (
+          {fullscreenContext === "recording" &&
+            (onRecordingStart || onRecordingStop) && (
             <div className='flex items-center gap-2'>
               <button
                 onClick={() => {
@@ -772,7 +777,7 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
             </kbd>
             <span>Stop</span>
           </span>
-          {onPracticeStart && (
+          {fullscreenContext === "practice" && onPracticeStart && (
             <span className='flex items-center gap-1'>
               <kbd className='px-1.5 py-0.5 bg-slate-700/50 rounded text-[9px]'>
                 P
@@ -817,3 +822,4 @@ const FullScreenTrainingMode: React.FC<FullScreenTrainingModeProps> = ({
 };
 
 export default FullScreenTrainingMode;
+export type { FullScreenTrainingModeProps };

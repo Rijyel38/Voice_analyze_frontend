@@ -7,7 +7,8 @@ import CombinedWaveformPitch from "../components/CombinedWaveformPitch";
 import LiveHzDisplay from "../components/LiveHzDisplay";
 import ScoreExplanation from "../components/ScoreExplanation";
 import Countdown from "../components/Countdown";
-import FullScreenTrainingMode from "../components/FullScreenTrainingMode";
+import PracticeFullScreenMode from "../components/PracticeFullScreenMode";
+import RecordingFullScreenMode from "../components/RecordingFullScreenMode";
 import AyahTextDisplay from "../components/AyahTextDisplay";
 import PronunciationAlerts from "../components/PronunciationAlerts";
 import ReferenceLibrary from "../components/ReferenceLibrary";
@@ -201,7 +202,10 @@ const TrainingStudio: React.FC = () => {
   const [isPlayingPracticeAudio, setIsPlayingPracticeAudio] = useState(false);
 
   // Full-screen training mode state
-  const [isFullScreenMode, setIsFullScreenMode] = useState(false);
+  const [isPracticeFullScreenOpen, setIsPracticeFullScreenOpen] =
+    useState(false);
+  const [isRecordingFullScreenOpen, setIsRecordingFullScreenOpen] =
+    useState(false);
   const [fullScreenZoomLevel, setFullScreenZoomLevel] = useState(1.0); // Start at 100% to avoid oversized mobile/fullscreen graph
 
   // Practice mode state
@@ -217,6 +221,8 @@ const TrainingStudio: React.FC = () => {
   const [triggerRecordingStart, setTriggerRecordingStart] = useState(false);
   const [triggerRecordingStop, setTriggerRecordingStop] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const isCustomUploadRefId = (id?: string | null): boolean =>
+    !!id && (id === "custom" || id.startsWith("custom_"));
   const [studentPlaybackSpeed, setStudentPlaybackSpeed] = useState(() => {
     // Load from localStorage if available, otherwise default to 1.0
     const saved = localStorage.getItem("studentPlaybackSpeed");
@@ -296,12 +302,15 @@ const TrainingStudio: React.FC = () => {
   const practiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const practicePcmRecorderRef = useRef<PracticePcmRecorder | null>(null);
 
-  const clearStudentGraphs = () => {
-    setRecordingPitchData([]);
+  const clearPracticeGraph = () => {
     setStudentPitchData([]);
+    setPracticeTime(0);
+  };
+
+  const clearRecordingGraph = () => {
+    setRecordingPitchData([]);
     setFollowModePitchData([]);
     setRecordingTime(0);
-    setPracticeTime(0);
   };
 
   const flushPracticePcmRecorder = (): Blob | null => {
@@ -899,7 +908,7 @@ const TrainingStudio: React.FC = () => {
         } else if (selectedRef) {
           // Fallback: fetch blob and extract (for custom uploads)
           const url =
-            selectedRef.id === "custom" && uploadedRefUrl
+            isCustomUploadRefId(selectedRef.id) && uploadedRefUrl
               ? uploadedRefUrl
               : selectedRef.url;
           if (!url) {
@@ -1595,7 +1604,17 @@ const TrainingStudio: React.FC = () => {
   };
 
   const handleRecordingStop = () => {
+    // Immediately mark recording as stopped in parent state to avoid UI race
+    // when stop is triggered from fullscreen/outside Recorder render branch.
+    isRecordingRef.current = false;
+    recordingStartTimeRef.current = null;
+    setIsRecording(false);
     setTriggerRecordingStop(true);
+    // Safety: clear trigger even if Recorder callback is delayed/not reached.
+    setTimeout(() => {
+      setTriggerRecordingStop(false);
+      setTriggerRecordingStart(false);
+    }, 400);
   };
 
   const handleAnalyze = async () => {
@@ -1612,7 +1631,7 @@ const TrainingStudio: React.FC = () => {
       const isLibraryReference =
         selectedRef &&
         selectedRef.id &&
-        selectedRef.id !== "custom" &&
+        !isCustomUploadRefId(selectedRef.id) &&
         !uploadedRefUrl &&
         referenceLibrary.some((r) => r.id === selectedRef.id);
 
@@ -1622,7 +1641,7 @@ const TrainingStudio: React.FC = () => {
       } else if (selectedRef) {
         // Fallback: fetch reference audio blob (custom upload or legacy mode)
         const urlToFetch =
-          selectedRef.id === "custom" && uploadedRefUrl
+          isCustomUploadRefId(selectedRef.id) && uploadedRefUrl
             ? uploadedRefUrl
             : selectedRef.url;
         if (urlToFetch) {
@@ -2128,7 +2147,7 @@ const TrainingStudio: React.FC = () => {
       const url = URL.createObjectURL(file);
       setUploadedRefUrl(url);
       setSelectedRef({
-        id: "custom",
+        id: `custom_${file.name}_${file.size}_${file.lastModified}`,
         title: file.name,
         url: url,
         duration: 0,
@@ -2361,7 +2380,7 @@ const TrainingStudio: React.FC = () => {
           {/* Reference Library Selector */}
           <ReferenceLibrary
             references={referenceLibrary}
-            selectedId={selectedRef?.id === "custom" ? "" : (selectedRef?.id || "")}
+            selectedId={uploadedRefUrl ? "" : (selectedRef?.id || "")}
             onSelect={async (id) => {
               if (!id) return;
               const ref = referenceLibrary.find((r) => r.id === id);
@@ -2532,7 +2551,7 @@ const TrainingStudio: React.FC = () => {
                   <div className='hidden'>
                     <Waveform
                       url={
-                        selectedRef?.id === "custom" && uploadedRefUrl
+                        isCustomUploadRefId(selectedRef?.id) && uploadedRefUrl
                           ? uploadedRefUrl
                           : (selectedRef?.url || "")
                       }
@@ -2681,6 +2700,24 @@ const TrainingStudio: React.FC = () => {
                                 </button>
                               </>
                             ) : null}
+                            <button
+                              onClick={clearPracticeGraph}
+                              className='flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors text-red-600 bg-red-50 border border-red-200 hover:bg-red-100'
+                              title='Clear student (red) graph'
+                            >
+                              <X size={14} />
+                              Delete Graph
+                            </button>
+                            <button
+                              onClick={() => {
+                                setIsPracticeFullScreenOpen(true);
+                              }}
+                              className='flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100'
+                              title='Open graph in full-screen mode'
+                            >
+                              <Maximize2 size={14} />
+                              Full Screen
+                            </button>
                           </>
                         )}
                       </div>
@@ -2691,7 +2728,7 @@ const TrainingStudio: React.FC = () => {
                       <LiveHzDisplay pitchData={studentPitchData} />
                     )}
 
-                    {/* Reference-only graph (no student/red track here) */}
+                    {/* Practice graph: reference + live student pitch (red) during practice */}
                     <CombinedWaveformPitch
                       referencePitch={
                         analysisResult?.pitchData?.reference &&
@@ -2706,8 +2743,12 @@ const TrainingStudio: React.FC = () => {
                             )
                           : referencePitchData
                       }
-                      studentPitch={[]}
-                      isRecording={false}
+                      studentPitch={
+                        isPracticeMode || studentPitchData.length > 0
+                          ? studentPitchData
+                          : []
+                      }
+                      isRecording={isPracticeMode}
                       isPlaying={isPlaying && !!refWaveSurfer.current?.isPlaying()}
                       currentTime={
                         isPlaying && refWaveSurfer.current?.isPlaying()
@@ -2716,7 +2757,7 @@ const TrainingStudio: React.FC = () => {
                       }
                       referenceDuration={referenceDuration}
                       referenceAudioUrl={
-                        selectedRef?.id === "custom" && uploadedRefUrl
+                        isCustomUploadRefId(selectedRef?.id) && uploadedRefUrl
                           ? uploadedRefUrl
                           : (selectedRef?.url || "")
                       }
@@ -2946,7 +2987,7 @@ const TrainingStudio: React.FC = () => {
               ) : (
                 <Waveform
                   url={
-                    selectedRef?.id === "custom" && uploadedRefUrl
+                    isCustomUploadRefId(selectedRef?.id) && uploadedRefUrl
                       ? uploadedRefUrl
                       : (selectedRef?.url || "")
                   }
@@ -3063,13 +3104,12 @@ const TrainingStudio: React.FC = () => {
                   analysisResult.pitchData.reference.length > 0);
               const hasStudentPitch =
                 recordingPitchData.length > 0 || // During/after recording
-                studentPitchData.length > 0 || // During/after fullscreen practice recording
                 followModePitchData.length > 0 || // During/after follow mode
                 (analysisResult?.pitchData?.student &&
                   analysisResult.pitchData.student.length > 0); // After analysis
-              // Show graph if we have pitch data OR if we're currently recording (to show live graph)
+              // Recording/scoring graph only: hide during practice mode.
               const shouldShow =
-                hasRefPitch || hasStudentPitch || isRecording || isPracticeMode;
+                !isPracticeMode && (hasRefPitch || hasStudentPitch || isRecording);
 
               console.log("📈 Pitch graph render check (Test Mode):", {
                 hasRefPitch,
@@ -3097,7 +3137,7 @@ const TrainingStudio: React.FC = () => {
                   </h3>
                   <div className='flex items-center gap-2'>
                     <button
-                      onClick={clearStudentGraphs}
+                      onClick={clearRecordingGraph}
                       className='flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg transition-colors text-red-600 bg-red-50 border border-red-200 hover:bg-red-100'
                       title='Clear student (red) graph'
                     >
@@ -3105,7 +3145,9 @@ const TrainingStudio: React.FC = () => {
                       Delete Graph
                     </button>
                     <button
-                      onClick={() => setIsFullScreenMode(true)}
+                      onClick={() => {
+                        setIsRecordingFullScreenOpen(true);
+                      }}
                       className='flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg transition-colors text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100'
                       title='Open recording graph in full-screen mode'
                     >
@@ -3131,7 +3173,7 @@ const TrainingStudio: React.FC = () => {
                       : [] // Empty array if no reference pitch available
                   }
                   referenceAudioUrl={
-                    selectedRef?.id === "custom" && uploadedRefUrl
+                    isCustomUploadRefId(selectedRef?.id) && uploadedRefUrl
                       ? uploadedRefUrl
                       : (selectedRef?.url || "")
                   }
@@ -3151,26 +3193,19 @@ const TrainingStudio: React.FC = () => {
                     }
                   }}
                   studentPitch={
-                    // Keep one visual source before/after scoring for consistency:
-                    // always draw student line from live-captured frontend pitch arrays.
-                    isPracticeMode
-                      ? studentPitchData
-                      : isRecording
+                    // Recording/scoring only (practice stays in the Reference Pitch graph above).
+                    isRecording
                       ? recordingPitchData
                       : recordingPitchData && recordingPitchData.length > 0
                       ? recordingPitchData
-                      : studentPitchData.length > 0
-                      ? studentPitchData
                       : followModePitchData.length > 0
                       ? followModePitchData
                       : [] // No student pitch available yet
                   }
-                  isRecording={isPracticeMode || isRecording || isFollowingReference} // Include practice/follow mode
+                  isRecording={isRecording || isFollowingReference}
                   isPlaying={false} // Never play audio during recording (unlike practice mode)
                   currentTime={
-                    isPracticeMode
-                      ? practiceTime
-                      : isRecording
+                    isRecording
                       ? recordingTime // During recording, use recording time - flows like practice mode
                       : isFollowingReference &&
                         refWaveSurfer.current?.isPlaying()
@@ -4062,7 +4097,7 @@ const TrainingStudio: React.FC = () => {
                 <div className='mt-6 pt-6 border-t border-slate-200'>
                   <SegmentPractice
                     referenceUrl={
-                      selectedRef?.id === "custom" && uploadedRefUrl
+                      isCustomUploadRefId(selectedRef?.id) && uploadedRefUrl
                         ? uploadedRefUrl
                         : (selectedRef?.url || "")
                     }
@@ -4108,10 +4143,10 @@ const TrainingStudio: React.FC = () => {
         </div>
       </div>
 
-      {/* Full-Screen Training Mode */}
-      <FullScreenTrainingMode
-        isOpen={isFullScreenMode}
-        onClose={() => setIsFullScreenMode(false)}
+      {/* Practice Full-Screen Mode (from top/reference practice graph) */}
+      <PracticeFullScreenMode
+        isOpen={isPracticeFullScreenOpen}
+        onClose={() => setIsPracticeFullScreenOpen(false)}
         referencePitch={
           // In test mode, prefer analysisResult pitch (from backend scoring)
           // This ensures fullscreen test graph uses the same reference as scoring
@@ -4178,7 +4213,76 @@ const TrainingStudio: React.FC = () => {
         onSeekToTime={handleFullScreenSeekToTime}
         markers={analysisResult?.pitchData?.markers || []}
         referenceUrl={
-          selectedRef?.id === "custom" && uploadedRefUrl
+          isCustomUploadRefId(selectedRef?.id) && uploadedRefUrl
+            ? uploadedRefUrl
+            : (selectedRef?.url || "")
+        }
+        studentBlob={studentBlob}
+        zoomLevel={fullScreenZoomLevel}
+        onZoomChange={setFullScreenZoomLevel}
+      />
+
+      {/* Recording Full-Screen Mode (from bottom/comparison graph) */}
+      <RecordingFullScreenMode
+        isOpen={isRecordingFullScreenOpen}
+        onClose={() => setIsRecordingFullScreenOpen(false)}
+        referencePitch={
+          analysisResult?.pitchData?.reference &&
+          analysisResult.pitchData.reference.length > 0
+            ? analysisResult.pitchData.reference.map((p: any) => ({
+                time: p.time || 0,
+                f_hz: p.f_hz || null,
+                midi: p.midi || null,
+                confidence: p.confidence || 0.9,
+              }))
+            : referencePitchData
+        }
+        studentPitch={
+          isRecording
+            ? recordingPitchData
+            : recordingPitchData.length > 0
+            ? recordingPitchData
+            : followModePitchData.length > 0
+            ? followModePitchData
+            : []
+        }
+        isRecording={isRecording}
+        isPlaying={isPlaying}
+        currentTime={
+          isRecording
+            ? recordingTime
+            : playbackTime || 0
+        }
+        referenceDuration={referenceDuration}
+        onPlay={handleFullScreenPlay}
+        onPause={handleFullScreenPause}
+        onStop={handleFullScreenStop}
+        onRestart={handleFullScreenRestart}
+        isPracticeMode={isPracticeMode}
+        onPracticeStart={handlePracticeStart}
+        onPracticeStop={handlePracticeStop}
+        onPracticeRestart={handlePracticeStart}
+        practiceTime={practiceTime}
+        practiceAttempts={progressData?.totalAttempts || 0}
+        isRecordingSession={isRecording}
+        onRecordingStart={handleRecordingStart}
+        onRecordingStop={handleRecordingStop}
+        practiceAudioUrl={practiceAudioUrl}
+        isPlayingPracticeAudio={isPlayingPracticeAudio}
+        practiceAudioTime={practiceAudioTime}
+        practiceAudioDuration={practiceAudioDuration}
+        onPlayPracticeAudio={handlePlayPracticeAudio}
+        onPausePracticeAudio={handlePausePracticeAudio}
+        onStopPracticeAudio={handleStopPracticeAudio}
+        ayatTiming={
+          selectedRef?.is_preset && referenceAyahTiming.length > 0
+            ? referenceAyahTiming
+            : []
+        }
+        onSeekToTime={handleFullScreenSeekToTime}
+        markers={analysisResult?.pitchData?.markers || []}
+        referenceUrl={
+          isCustomUploadRefId(selectedRef?.id) && uploadedRefUrl
             ? uploadedRefUrl
             : (selectedRef?.url || "")
         }

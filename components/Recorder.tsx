@@ -195,10 +195,12 @@ const Recorder: React.FC<RecorderProps> = ({
   }, [triggerRecordingStart, isRecording]);
 
   useEffect(() => {
-    if (triggerRecordingStop && isRecording) {
+    if (triggerRecordingStop) {
+      // Stop whenever trigger is raised and recorder is active,
+      // regardless of parent isRecording timing updates.
       stopRecording();
     }
-  }, [triggerRecordingStop, isRecording]);
+  }, [triggerRecordingStop]);
   
   // Reset hasStartedRef when recording stops
   useEffect(() => {
