@@ -1130,19 +1130,25 @@ const TrainingStudio: React.FC = () => {
       return;
     }
 
-    // Calculate elapsed time since practice started (use ref for latest value)
+    // Wall-clock elapsed time (fallback when reference audio clock is unavailable)
     const elapsedTime = (Date.now() - practiceStartTimeRef.current) / 1000;
-
-    // Apply 1:1 time mapping (student time = reference time)
     const refDuration = referenceDurationRef.current || Infinity;
 
-    // FIX: Don't stop early - allow 10% buffer for full audio capture
-    const mappedTime = Math.min(elapsedTime, refDuration * 1.1);
+    // Prefer reference-audio time so red pitch and cursor share one clock.
+    const ws = refWaveSurfer.current;
+    const audioTime =
+      ws && !ws.isDestroyed ? ws.getCurrentTime() : 0;
+    const useAudioTime =
+      audioTime > 0.001 || !!(ws && !ws.isDestroyed && ws.isPlaying());
+    const mappedTime = useAudioTime
+      ? Math.min(audioTime, refDuration * 1.1)
+      : Math.min(elapsedTime, refDuration * 1.1);
 
     // Only stop if significantly over duration (20% buffer)
-    if (elapsedTime >= refDuration * 1.2 && practicePitchExtractorRef.current) {
+    const durationProbe = useAudioTime ? audioTime : elapsedTime;
+    if (durationProbe >= refDuration * 1.2 && practicePitchExtractorRef.current) {
       console.log(
-        `[Practice] Practice duration exceeded (${elapsedTime.toFixed(
+        `[Practice] Practice duration exceeded (${durationProbe.toFixed(
           2
         )}s > ${refDuration.toFixed(2)}s) - stopping extraction`
       );
@@ -1175,7 +1181,7 @@ const TrainingStudio: React.FC = () => {
     // Update state - replace very-close timestamp sample instead of dropping it.
     setStudentPitchData((prev) => {
       const lastPoint = prev.length > 0 ? prev[prev.length - 1] : null;
-      if (lastPoint && Math.abs(lastPoint.time - mappedTime) < 0.02) {
+      if (lastPoint && Math.abs(lastPoint.time - mappedTime) < 0.01) {
         const updated = [...prev.slice(0, -1), mappedPitch];
         return updated;
       }
@@ -1462,14 +1468,24 @@ const TrainingStudio: React.FC = () => {
         // Pitch extraction won't work, but recording might still work
       }
 
-      // Keep practice capture conditions aligned with recording mode:
-      // do not auto-play reference audio on practice start.
-      // Users can still play reference manually when needed.
-      setIsPlaying(false);
-      setPlaybackTime(0);
+      // Auto-play reference so practice pitch and cursor share the same timeline.
+      if (refWaveSurfer.current && !refWaveSurfer.current.isDestroyed) {
+        try {
+          refWaveSurfer.current.seekTo(0);
+          refWaveSurfer.current.play();
+          setIsPlaying(true);
+        } catch (e) {
+          console.warn("[Practice] Could not auto-play reference:", e);
+          setIsPlaying(false);
+          setPlaybackTime(0);
+        }
+      } else {
+        setIsPlaying(false);
+        setPlaybackTime(0);
+      }
 
       console.log(
-        "Practice mode started - pitch graph will build as you speak..."
+        "Practice mode started - reference playback and pitch share the same timeline."
       );
     } catch (error: any) {
       console.error("Error starting practice mode:", error);
@@ -2671,16 +2687,7 @@ const TrainingStudio: React.FC = () => {
                         {(referencePitchData.length > 0 ||
                           (analysisResult?.pitchData?.reference && analysisResult.pitchData.reference.length > 0)) && (
                           <>
-                            {referencePitchData.length > 0 && !isPracticeMode ? (
-                              <button
-                                onClick={() => setShowCountdown(true)}
-                                className='flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors text-emerald-600 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100'
-                                title='Start practice mode - begin real-time pitch tracking'
-                              >
-                                <Play size={14} />
-                                Start Practice
-                              </button>
-                            ) : referencePitchData.length > 0 && isPracticeMode ? (
+                            {referencePitchData.length > 0 && isPracticeMode ? (
                               <>
                                 <button
                                   onClick={handlePracticeStop}
@@ -3138,7 +3145,7 @@ const TrainingStudio: React.FC = () => {
                   <div className='flex items-center gap-2'>
                     <button
                       onClick={clearRecordingGraph}
-                      className='flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg transition-colors text-red-600 bg-red-50 border border-red-200 hover:bg-red-100'
+                      className='flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors text-red-600 bg-red-50 border border-red-200 hover:bg-red-100'
                       title='Clear student (red) graph'
                     >
                       <X size={14} />
@@ -3148,7 +3155,7 @@ const TrainingStudio: React.FC = () => {
                       onClick={() => {
                         setIsRecordingFullScreenOpen(true);
                       }}
-                      className='flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg transition-colors text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100'
+                      className='flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100'
                       title='Open recording graph in full-screen mode'
                     >
                       <Maximize2 size={14} />
