@@ -831,8 +831,8 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
       const useFixedRange = isFullScreen || fixedYAxis;
       const calculatedMinFreq = allFreqs.length > 0 ? Math.min(...allFreqs) : 60;
       const calculatedMaxFreq = allFreqs.length > 0 ? Math.max(...allFreqs) : 600;
-      // Cap auto-scale at 1200 Hz to avoid clipping higher voices while staying readable
-      const cappedCalculatedMaxFreq = Math.min(calculatedMaxFreq, 1200);
+      // Keep auto-scale in readable vocal range for this training UI.
+      const cappedCalculatedMaxFreq = Math.min(calculatedMaxFreq, 600);
       const finalMinFreq = useFixedRange ? minFreq : calculatedMinFreq;
       const finalMaxFreq = useFixedRange ? maxFreq : Math.max(finalMinFreq + 40, cappedCalculatedMaxFreq);
       const freqRange = finalMaxFreq - finalMinFreq || 540;

@@ -145,6 +145,8 @@ export class RealTimePitchExtractor {
   // EMA smoothing state for live pitch (continuous, less staircase than median).
   private emaFrequency: number | null = null;
   private readonly EMA_ALPHA = 0.35;
+  private readonly MAX_VOICED_STEP_HZ = 75;
+  private readonly OUTLIER_CENTS_THRESHOLD = 180;
   
   // Pitch filtering options - NO RANGE RESTRICTIONS
   private filterOptions: PitchFilterOptions = {
@@ -178,6 +180,40 @@ export class RealTimePitchExtractor {
     
     // If frequency is more than 2.5 standard deviations from mean, it's an outlier
     return Math.abs(frequency - mean) > 2.5 * stdDev;
+  }
+
+  /**
+   * Light voiced outlier suppression:
+   * - keeps natural contour changes
+   * - suppresses short unstable jumps seen as spikes during recitation
+   */
+  private stabilizeVoicedFrequency(
+    frequency: number,
+    confidence: number
+  ): number {
+    const prev = this.previousFrequency;
+    if (prev === null || !isFinite(prev) || prev <= 0) {
+      return frequency;
+    }
+
+    const ratio = frequency / prev;
+    const centsDelta = Math.abs(1200 * Math.log2(Math.max(ratio, 1e-6)));
+    const recentVoiced = this.recentPitchBuffer
+      .map((p) => p.frequency)
+      .filter((f): f is number => f !== null && f !== undefined && isFinite(f));
+    const isOutlier = this.detectOutlier(frequency, recentVoiced);
+
+    // Only intervene on suspicious low/medium-confidence jumps.
+    if (
+      (isOutlier || centsDelta > this.OUTLIER_CENTS_THRESHOLD) &&
+      confidence < 0.8
+    ) {
+      const lower = prev - this.MAX_VOICED_STEP_HZ;
+      const upper = prev + this.MAX_VOICED_STEP_HZ;
+      return Math.max(lower, Math.min(upper, frequency));
+    }
+
+    return frequency;
   }
 
   /**
@@ -307,6 +343,23 @@ export class RealTimePitchExtractor {
         pitchPoint = { ...pitchPoint, frequency: null, midi: null };
         finalFrequency = null;
       }
+    }
+
+    // Light outlier filtering while voiced (before EMA) to reduce transient spikes.
+    if (
+      this.filterOptions.enabled &&
+      finalFrequency !== null &&
+      isFinite(finalFrequency)
+    ) {
+      finalFrequency = this.stabilizeVoicedFrequency(
+        finalFrequency,
+        finalConfidence
+      );
+      pitchPoint = {
+        ...pitchPoint,
+        frequency: finalFrequency,
+        midi: finalFrequency ? this.hzToMidi(finalFrequency) : null,
+      };
     }
 
     // Apply smoothing ONLY when explicitly requested via smoothingWindow > 1.
