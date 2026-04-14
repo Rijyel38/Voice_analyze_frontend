@@ -428,11 +428,13 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
     const pixelsPerSecond = graphWidth / visibleTimeRange;
     const newPanOffset = clampedPanTime * pixelsPerSecond;
 
-    // Smooth transition to new pan position
     setPanOffset((prev) => {
       const diff = Math.abs(newPanOffset - prev);
-      if (diff < 1) return newPanOffset; // Close enough
-      // Smooth interpolation (15% per frame for smooth movement)
+      if (diff < 1) return newPanOffset;
+      // During live recording/practice, snap viewport instantly so
+      // the blue cursor and red line tip stay aligned at center.
+      // During playback, use smooth interpolation for polished feel.
+      if (isRecording) return newPanOffset;
       return prev + (newPanOffset - prev) * 0.15;
     });
   }, [
@@ -622,22 +624,27 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
           ? Math.max(...studentPitch.map((p) => p.time))
           : 0;
 
-      // Use actual audio duration if provided (more accurate than pitch data max time)
-      // This ensures the graph shows the full audio duration even if pitch data ends early
       const audioDuration =
         referenceDuration && referenceDuration > 0
           ? referenceDuration
           : Math.max(refMaxTime, studentMaxTime);
 
-      // Base max time (without zoom) - this is the full duration
-      // Ensure we always have a valid time range, including both reference and student pitch
-      const baseMaxTime = Math.max(
-        audioDuration,
-        currentTime || 0,
-        refMaxTime || 0,
-        studentMaxTime || 0,
-        10 // Minimum 10 seconds to ensure graph is visible
-      );
+      // During live recording, use the same baseMaxTime formula as the
+      // auto-follow effect so panOffset translates to the same viewport.
+      const liveDrawTime =
+        isRecording && studentPitch.length > 0
+          ? studentPitch[studentPitch.length - 1].time
+          : currentTime || 0;
+
+      const baseMaxTime = isRecording
+        ? Math.max(audioDuration, liveDrawTime, 10)
+        : Math.max(
+            audioDuration,
+            currentTime || 0,
+            refMaxTime || 0,
+            studentMaxTime || 0,
+            10
+          );
 
       const padding = 60;
       // Use display dimensions for drawing calculations
@@ -698,17 +705,32 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
           minVisibleTime + effectiveRange,
           Math.max(effectiveMaxTime, audioDuration + effectiveRange / 2)
         );
+      } else if (isRecording) {
+        // During live recording/practice, use the same panOffset-based
+        // viewport that auto-follow computes so the blue cursor and red
+        // line tip stay aligned at center.
+        const centerTime = baseMaxTime / 2;
+        const startTime = centerTime - visibleTimeRange / 2 + panTime;
+        const maxStartForCenterAtEnd = Math.max(
+          baseMaxTime - visibleTimeRange,
+          audioDuration - visibleTimeRange / 2
+        );
+        minVisibleTime = Math.max(
+          0,
+          Math.min(startTime, maxStartForCenterAtEnd)
+        );
+        maxVisibleTime = Math.min(
+          minVisibleTime + visibleTimeRange,
+          Math.max(baseMaxTime, audioDuration + visibleTimeRange / 2)
+        );
       } else {
-        // Normal mode - ensure both reference and student pitch are visible
-        // TEST MODE: When student pitch exists (from recording), include it in visible range
+        // Normal mode (not recording) - ensure both reference and student pitch are visible
         if (studentPitch.length > 0 && referencePitch.length > 0) {
-          // Collect all time points from both reference and student pitch
           const allTimePoints: number[] = [
             ...referencePitch.map((p) => p.time),
             ...studentPitch.map((p) => p.time),
           ];
 
-          // Filter out invalid time points
           const validTimePoints = allTimePoints.filter(
             (t) => t >= 0 && isFinite(t)
           );
@@ -718,8 +740,6 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
             const combinedMaxTime = Math.max(...validTimePoints);
             const combinedRange = combinedMaxTime - combinedMinTime;
 
-            // Use the combined range, but ensure it's at least the visibleTimeRange
-            // Add 10% padding to ensure all points are visible
             const effectiveRange = Math.max(
               visibleTimeRange,
               combinedRange * 1.1
@@ -732,22 +752,9 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
               Math.max(baseMaxTime, combinedMaxTime * 1.1),
               minVisibleTime + effectiveRange
             );
-
-            console.log(`[Graph] Combined visible range calculated:`, {
-              combinedMinTime,
-              combinedMaxTime,
-              combinedRange,
-              effectiveRange,
-              minVisibleTime,
-              maxVisibleTime,
-              studentPitchLength: studentPitch.length,
-              referencePitchLength: referencePitch.length,
-            });
           } else {
-            // Fallback if no valid time points
             const centerTime = baseMaxTime / 2;
             const startTime = centerTime - visibleTimeRange / 2 + panTime;
-            // Allow center to reach audioDuration (graph finishes at tracking line)
             const maxStartForCenterAtEnd = Math.max(
               baseMaxTime - visibleTimeRange,
               audioDuration - visibleTimeRange / 2
@@ -762,28 +769,26 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
             );
           }
         } else if (studentPitch.length > 0) {
-          // Only student pitch exists (during recording before reference loads)
           const studentTimePoints = studentPitch
             .map((p) => p.time)
             .filter((t) => t >= 0 && isFinite(t));
           if (studentTimePoints.length > 0) {
             const studentMinTime = Math.min(...studentTimePoints);
-            const studentMaxTime = Math.max(...studentTimePoints);
-            const studentRange = studentMaxTime - studentMinTime;
+            const sMaxTime = Math.max(...studentTimePoints);
+            const studentRange = sMaxTime - studentMinTime;
             const effectiveRange = Math.max(
               visibleTimeRange,
               studentRange * 1.1
             );
-            const centerTime = (studentMinTime + studentMaxTime) / 2;
+            const centerTime = (studentMinTime + sMaxTime) / 2;
             const startTime = centerTime - effectiveRange / 2 + panTime;
 
             minVisibleTime = Math.max(0, startTime);
             maxVisibleTime = Math.min(
-              Math.max(baseMaxTime, studentMaxTime * 1.1),
+              Math.max(baseMaxTime, sMaxTime * 1.1),
               minVisibleTime + effectiveRange
             );
           } else {
-            // Fallback
             const centerTime = baseMaxTime / 2;
             const startTime = centerTime - visibleTimeRange / 2 + panTime;
             const maxStartForCenterAtEnd = Math.max(
@@ -978,6 +983,9 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
         ctx.stroke();
       }
 
+      // Shared render clock for both red filtering and blue cursor.
+      let renderCursorTime = currentTime || 0;
+
       // Draw student pitch (red) - live, all points up to current time
       if (studentPitch.length > 0) {
         // Debug: Log student pitch data
@@ -1008,14 +1016,25 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
         let firstPoint = true;
         let lastValidPoint: { x: number; y: number } | null = null;
 
-        // Show ALL collected points - in practice mode, graph builds in real-time
-        // After practice completes, show the complete graph
-        // Filter by currentTime ONLY during playback of recorded audio (not during live practice/recording)
-        // During practice/recording mode (isRecording=true), show all points as they're collected
-        const visibleStudentPitch =
-          isRecording || !isPlaying
-            ? studentPitch // Show all points during practice/recording and when not playing
-            : studentPitch.filter((p) => p.time <= (currentTime || Infinity)); // Filter for recorded playback only
+        const latestStudentTime =
+          studentPitch.length > 0
+            ? studentPitch[studentPitch.length - 1].time
+            : 0;
+        // Use one render clock for both red filtering and blue cursor.
+        // In live mode, prefer currentTime when available to avoid red leading blue.
+        renderCursorTime =
+          isRecording && currentTime > 0
+            ? Math.min(currentTime, latestStudentTime || currentTime)
+            : isRecording
+            ? latestStudentTime
+            : currentTime || 0;
+        const maxRenderTime =
+          renderCursorTime && isFinite(renderCursorTime)
+            ? renderCursorTime + 0.03
+            : Infinity;
+        const visibleStudentPitch = studentPitch.filter(
+          (p) => p.time <= maxRenderTime
+        );
 
         // Use raw live stream points to keep mode parity and avoid graph-side spike artifacts.
         const sortedPitch = [...visibleStudentPitch].sort(
@@ -1108,13 +1127,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
       // The line moves from start until it reaches the center of the visible viewport,
       // then remains fixed at center while the graph scrolls, allowing future pitch data to appear on the right
       //
-      // During live recording/practice, derive cursor time from the latest red
-      // pitch point so they never drift apart (React state lags behind the
-      // direct ws.getCurrentTime() used for red-point timestamps).
-      const effectiveCursorTime =
-        isRecording && studentPitch.length > 0
-          ? studentPitch[studentPitch.length - 1].time
-          : currentTime;
+      const effectiveCursorTime = renderCursorTime;
 
       if (effectiveCursorTime > 0 && baseMaxTime > 0) {
         ctx.strokeStyle = "#3b82f6"; // Blue
