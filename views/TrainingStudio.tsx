@@ -1167,8 +1167,9 @@ const TrainingStudio: React.FC = () => {
       return;
     }
 
-    // Update practice time for display (cap at reference duration for display)
-    setPracticeTime(Math.min(mappedTime, refDuration));
+    // Keep cursor time on the same timeline as plotted red points.
+    // Avoid extra clamping that can make red appear ahead of blue.
+    setPracticeTime(mappedTime);
 
     // Create pitch point with mapped time
     const mappedPitch: PitchPoint = {
@@ -1210,17 +1211,25 @@ const TrainingStudio: React.FC = () => {
       return;
     }
 
-    // Calculate elapsed time since recording started (use ref for latest value)
+    // Calculate elapsed time since recording started (fallback clock)
     const elapsedTime = (Date.now() - recordingStartTimeRef.current) / 1000;
 
     // Apply 1:1 time mapping (student time = reference time) - same as practice mode
     const refDuration = referenceDurationRef.current || Infinity;
 
-    // FIX: Don't stop early - allow 10% buffer for full audio capture
-    const mappedTime = Math.min(elapsedTime, refDuration * 1.1);
+    // Prefer reference-audio playback time when available so recording/red/cursor
+    // share one clock source across different devices/browsers.
+    const ws = refWaveSurfer.current;
+    const audioTime = ws && !ws.isDestroyed ? ws.getCurrentTime() : 0;
+    const useAudioTime =
+      audioTime > 0.001 || !!(ws && !ws.isDestroyed && ws.isPlaying());
+    // Keep existing 10% headroom behaviour.
+    const mappedTime = useAudioTime
+      ? Math.min(audioTime, refDuration * 1.1)
+      : Math.min(elapsedTime, refDuration * 1.1);
 
-    // Update recording time for display (cap at reference duration for display)
-    setRecordingTime(Math.min(mappedTime, refDuration));
+    // Keep cursor time on the same timeline as plotted red points.
+    setRecordingTime(mappedTime);
 
     // Create pitch point with mapped time (same as practice mode)
     const mappedPitch: PitchPoint = {
@@ -1260,13 +1269,19 @@ const TrainingStudio: React.FC = () => {
       return;
     }
 
-    // Calculate time relative to reference audio playback
+    // Use reference playback clock for alignment (fallback to wall-clock).
+    const ws = refWaveSurfer.current;
+    const audioTime = ws && !ws.isDestroyed ? ws.getCurrentTime() : 0;
     const elapsedTime = (Date.now() - followModeStartTimeRef.current) / 1000;
+    const mappedTime =
+      audioTime > 0.001 || !!(ws && !ws.isDestroyed && ws.isPlaying())
+        ? audioTime
+        : elapsedTime;
 
     // Map pitch time to reference audio time
     const mappedPitch: PitchPoint = {
       ...pitch,
-      time: elapsedTime, // Use elapsed time from reference audio start
+      time: mappedTime,
     };
 
     setFollowModePitchData((prev) => {
@@ -3230,14 +3245,8 @@ const TrainingStudio: React.FC = () => {
                       : 0 // No cursor when not playing
                   }
                   referenceDuration={
-                    referenceDuration ||
-                    (analysisResult?.pitchData?.student &&
-                    analysisResult.pitchData.student.length > 0
-                      ? Math.max(
-                          ...analysisResult.pitchData.student.map(
-                            (p: any) => p.time || 0
-                          )
-                        )
+                    referenceDuration > 0
+                      ? referenceDuration
                       : analysisResult?.pitchData?.reference &&
                         analysisResult.pitchData.reference.length > 0
                       ? Math.max(
@@ -3247,7 +3256,14 @@ const TrainingStudio: React.FC = () => {
                         )
                       : recordingPitchData.length > 0
                       ? Math.max(...recordingPitchData.map((p) => p.time))
-                      : 0)
+                      : analysisResult?.pitchData?.student &&
+                        analysisResult.pitchData.student.length > 0
+                      ? Math.max(
+                          ...analysisResult.pitchData.student.map(
+                            (p: any) => p.time || 0
+                          )
+                        )
+                      : 0
                   }
                   height={pitchGraphHeight}
                   markers={analysisResult?.pitchData?.markers || []}
