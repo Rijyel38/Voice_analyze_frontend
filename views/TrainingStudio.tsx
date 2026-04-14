@@ -2756,9 +2756,15 @@ const TrainingStudio: React.FC = () => {
                           : []
                       }
                       isRecording={isPracticeMode}
-                      isPlaying={isPlaying && !!refWaveSurfer.current?.isPlaying()}
+                      isPlaying={
+                        isPracticeMode
+                          ? false
+                          : isPlaying && !!refWaveSurfer.current?.isPlaying()
+                      }
                       currentTime={
-                        isPlaying && refWaveSurfer.current?.isPlaying()
+                        isPracticeMode
+                          ? practiceTime
+                          : isPlaying && refWaveSurfer.current?.isPlaying()
                           ? playbackTime || 0
                           : 0
                       }
