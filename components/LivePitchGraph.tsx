@@ -571,6 +571,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
         }
       }
 
+
       // Update current points for next pass
       currentPoints = smoothed;
     }
