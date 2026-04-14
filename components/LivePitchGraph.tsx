@@ -390,6 +390,13 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
     const canvas = canvasRef.current;
     if (!canvas || currentTime <= 0) return;
 
+    // During live recording/practice, use the latest red-point time so
+    // auto-follow scrolling stays locked to the red line (same as blue cursor).
+    const liveTime =
+      isRecording && studentPitch.length > 0
+        ? studentPitch[studentPitch.length - 1].time
+        : currentTime;
+
     const refMaxTime =
       referencePitch.length > 0
         ? Math.max(...referencePitch.map((p) => p.time))
@@ -398,16 +405,13 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
       referenceDuration && referenceDuration > 0
         ? referenceDuration
         : refMaxTime;
-    const baseMaxTime = Math.max(audioDuration, currentTime || 0, 10);
+    const baseMaxTime = Math.max(audioDuration, liveTime || 0, 10);
 
     const padding = 60;
     const graphWidth = canvas.width - padding * 2;
     const visibleTimeRange = baseMaxTime / effectiveZoomLevel;
 
-    // Calculate desired center position.
-    // Graph finishes at the tracking line: center follows playback until end of audio.
-    // When playback completes, the last pitch point is at the center (tracking line).
-    const desiredCenterTime = Math.min(currentTime, audioDuration);
+    const desiredCenterTime = Math.min(liveTime, audioDuration);
 
     const currentCenterTime = baseMaxTime / 2;
     const panTimeNeeded = desiredCenterTime - currentCenterTime;
@@ -438,6 +442,7 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
     effectiveZoomLevel,
     referenceDuration,
     referencePitch,
+    studentPitch,
     autoFollow,
     manualPanActive,
   ]);
@@ -1102,7 +1107,16 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
       // Draw current time cursor (blue vertical line) - shows during recording and playback
       // The line moves from start until it reaches the center of the visible viewport,
       // then remains fixed at center while the graph scrolls, allowing future pitch data to appear on the right
-      if (currentTime > 0 && baseMaxTime > 0) {
+      //
+      // During live recording/practice, derive cursor time from the latest red
+      // pitch point so they never drift apart (React state lags behind the
+      // direct ws.getCurrentTime() used for red-point timestamps).
+      const effectiveCursorTime =
+        isRecording && studentPitch.length > 0
+          ? studentPitch[studentPitch.length - 1].time
+          : currentTime;
+
+      if (effectiveCursorTime > 0 && baseMaxTime > 0) {
         ctx.strokeStyle = "#3b82f6"; // Blue
         ctx.lineWidth = 2.5;
 
@@ -1112,15 +1126,10 @@ const LivePitchGraph: React.FC<LivePitchGraphProps> = ({
 
         let cursorX: number;
 
-        // If currentTime hasn't reached center yet, move the line with currentTime
-        // Once currentTime reaches or passes center, keep the line fixed at center
-        if (currentTime < centerTime) {
-          // Line is still moving toward center
-          cursorX = padding + ((currentTime - minVisibleTime) / actualVisibleRange) * graphWidth;
-          // Clamp to not exceed center
+        if (effectiveCursorTime < centerTime) {
+          cursorX = padding + ((effectiveCursorTime - minVisibleTime) / actualVisibleRange) * graphWidth;
           cursorX = Math.min(cursorX, centerX);
         } else {
-          // Line is fixed at center
           cursorX = centerX;
         }
 
